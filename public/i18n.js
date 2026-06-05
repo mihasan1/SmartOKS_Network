@@ -54,6 +54,9 @@ const I18N = {
     "status.tool": "Інструмент: {name}",
     "status.simOn": "Симуляція активна — зв'язки підсвічено",
     "status.simOff": "Симуляцію вимкнено",
+    "status.selected": "Виділено пристроїв: {n}",
+    "log.copied": "Скопійовано пристроїв: {n}",
+    "log.pasted": "Вставлено пристроїв: {n}",
 
     "dev.pc": "ПК",
     "dev.laptop": "Ноутбук",
@@ -161,6 +164,9 @@ const I18N = {
     "status.tool": "Tool: {name}",
     "status.simOn": "Simulation active — links highlighted",
     "status.simOff": "Simulation off",
+    "status.selected": "Selected devices: {n}",
+    "log.copied": "Copied devices: {n}",
+    "log.pasted": "Pasted devices: {n}",
 
     "dev.pc": "PC",
     "dev.laptop": "Laptop",
