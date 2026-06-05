@@ -10,7 +10,7 @@
 
 const I18N = {
   uk: {
-    "app.title": "NetPlanner — проєктування локальних мереж",
+    "app.title": "SmartOKS — Network Planner",
 
     "tool.select": "Вибір",
     "tool.room": "Кімната",
@@ -145,7 +145,7 @@ const I18N = {
   },
 
   en: {
-    "app.title": "NetPlanner — local network design",
+    "app.title": "SmartOKS — Network Planner",
 
     "tool.select": "Select",
     "tool.room": "Room",
