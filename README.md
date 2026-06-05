@@ -1,58 +1,59 @@
 # 🖧 SmartOKS — Network Planner
 
-> Візуальний конструктор локальних мереж та планувальник приміщень у браузері — аналог **Cisco Packet Tracer**.
+> A browser-based LAN designer and room planner — a **Cisco Packet Tracer** analog.
 
 [![demo](https://img.shields.io/badge/demo-smartoks--network.vercel.app-3b82f6)](https://smartoks-network.vercel.app)
 ![stack](https://img.shields.io/badge/stack-Node.js%20%2B%20Express%20%2B%20Canvas-22c55e)
 ![themes](https://img.shields.io/badge/themes-light%20%2F%20dark-7c5cff)
 ![i18n](https://img.shields.io/badge/i18n-UA%20%2F%20EN-ff8fb3)
+![release](https://img.shields.io/badge/release-v1.0.0-3b82f6)
 
-**🔗 Демо:** https://smartoks-network.vercel.app
+**🔗 Live demo:** https://smartoks-network.vercel.app
 
-Проєктуй локальні мережі візуально: розміщуй пристрої в приміщеннях, з'єднуй їх проводами або по Wi-Fi, роздавай IP-адреси, перевіряй зв'язність через ping-симуляцію — усе у браузері, без інсталяцій.
-
----
-
-## ✨ Можливості
-
-### 🏢 Планувальник приміщень
-- Малювання **кімнат** і **стін/перегородок** по сітці.
-- Зміна розмірів кімнат і стін за кутові маркери.
-- Пристрої **всередині кімнати переміщуються разом із нею**.
-
-### 🖧 Мережеві пристрої (10 типів)
-ПК · Ноутбук · Сервер · Принтер · Комутатор · Концентратор · Wi-Fi роутер · Точка доступу · **IP-камера** · **Відеореєстратор (NVR)**.
-
-Кожен пристрій налаштовується індивідуально: ім'я, IP, маска, шлюз, MAC, **кількість портів**, **підключення по Wi-Fi**, живлення.
-
-### 🔌 З'єднання
-- Видимі **проводи** (вита пара / оптоволокно) з провисом і конекторами.
-- **Ліміт портів** — не можна під'єднати більше кабелів, ніж є портів; індикатори зайнятих/вільних портів на пристрої.
-- **Wi-Fi** — коло покриття з **регульованим радіусом** (тягнути за маркер або задати числом); бездротова асоціація пристроїв у зоні роутера/точки доступу.
-
-### 🌐 Мережева логіка
-- **Авто-IP** — роздача `192.168.X.0/24` по сегментах зі шлюзом на роутері.
-- **DHCP-сервер** — сервер видає адреси свого сегмента.
-- **Маски підмереж** і **шлюзи** у властивостях.
-- **Виявлення конфліктів IP** — дублікати підсвічуються червоним ⚠.
-- **Ping-симуляція** — анімація пакета по знайденому маршруту з виводом у консоль; підсвітка живих/мертвих лінків.
-
-### 🛠 Зручність роботи
-- **Undo / Redo** (Ctrl+Z / Ctrl+Y) на знімках стану, глибина 100 кроків.
-- **Мультивиділення** рамкою або Shift+клік, груповий рух, **копіювання** (Ctrl+C / Ctrl+V), зсув стрілками.
-- Пан/зум, прив'язка до сітки.
-- **Експорт PNG** (hi-res offscreen), **експорт/імпорт `.json`**, **друк**.
-- **Збереження проєктів** на сервер + автозбереження в localStorage.
-
-### 🎨 Інтерфейс
-- **Світла / темна теми** з перемикачем (зберігається).
-- **Дві мови**: українська / англійська (повна i18n).
-- Професійні **SVG-іконки** (стиль Lucide) — в інтерфейсі, палітрі, на canvas та в інспекторі.
-- Вбудована **довідка** (кнопка або `F1`) з інструкцією та гарячими клавішами.
+Design local networks visually: place devices inside rooms, connect them with cables or over Wi-Fi, hand out IP addresses, and verify connectivity with a ping simulation — all in the browser, no installs required.
 
 ---
 
-## 🚀 Запуск локально
+## ✨ Features
+
+### 🏢 Room planner
+- Draw **rooms** and **walls / partitions** on a grid.
+- Resize rooms and walls by their corner handles.
+- Devices **inside a room move together with it**.
+
+### 🖧 Network devices (10 types)
+PC · Laptop · Server · Printer · Switch · Hub · Wi-Fi Router · Access Point · **IP Camera** · **NVR Recorder**.
+
+Every device is configured individually: name, IP, subnet mask, gateway, MAC, **port count**, **Wi-Fi connectivity**, power.
+
+### 🔌 Connections
+- Visible **cables** (twisted pair / fiber) with sag and connectors.
+- **Port limit** — you can't plug in more cables than there are ports; used/free port indicators are shown on each device.
+- **Wi-Fi** — coverage circle with an **adjustable radius** (drag the marker or type a value); wireless devices associate within a router/access-point range.
+
+### 🌐 Networking
+- **Auto-IP** — assigns `192.168.X.0/24` per segment with the gateway on the router.
+- **DHCP server** — a server leases addresses to its own segment.
+- **Subnet masks** and **gateways** in device properties.
+- **IP conflict detection** — duplicates are flagged red ⚠.
+- **Ping simulation** — packet animation along the discovered route with console output; live/dead link highlighting.
+
+### 🛠 Editing convenience
+- **Undo / Redo** (Ctrl+Z / Ctrl+Y) via state snapshots, 100-step history.
+- **Multi-select** with a marquee or Shift+click, group move, **copy/paste** (Ctrl+C / Ctrl+V), arrow-key nudge.
+- Pan / zoom, snap to grid.
+- **PNG export** (hi-res offscreen render), **JSON export/import**, **print**.
+- **Project saving** to the server + auto-save to localStorage.
+
+### 🎨 Interface
+- **Light / dark themes** with a toggle (persisted).
+- **Two languages**: Ukrainian / English (full i18n).
+- Professional **SVG icons** (Lucide style) — across the UI, palette, canvas and inspector.
+- Built-in **help** (button or `F1`) with usage instructions and keyboard shortcuts.
+
+---
+
+## 🚀 Run locally
 
 ```bash
 git clone https://github.com/mihasan1/SmartOKS_Network.git
@@ -61,11 +62,11 @@ npm install
 npm start
 ```
 
-Відкрити **http://localhost:3000**
+Open **http://localhost:3000**
 
-> Потрібен Node.js 18+ (розроблено на v24).
+> Requires Node.js 18+ (developed on v24).
 
-Режим з автоперезапуском:
+With auto-reload:
 
 ```bash
 npm run dev
@@ -73,84 +74,84 @@ npm run dev
 
 ---
 
-## ⌨️ Гарячі клавіші
+## ⌨️ Keyboard shortcuts
 
-| Клавіша | Дія |
+| Key | Action |
 |---|---|
-| `V` `R` `W` `C` `E` | Інструменти: Вибір / Кімната / Стіна / Провід / Видалити |
-| `Ctrl + Z` / `Ctrl + Y` | Скасувати / Повернути |
-| `Ctrl + C` / `Ctrl + V` | Копіювати / Вставити пристрої |
-| `Ctrl + A` | Виділити всі пристрої |
-| `Ctrl + S` | Зберегти проєкт |
-| `Delete` | Видалити виділене |
-| `Стрілки` | Зсув виділеного по сітці |
-| `Колесо миші` | Масштаб |
-| `Пробіл + тягнути` / середня кнопка | Панорама |
-| Подвійний клік по пристрою | Увімк / вимк живлення |
-| `F1` | Довідка |
+| `V` `R` `W` `C` `E` | Tools: Select / Room / Wall / Cable / Erase |
+| `Ctrl + Z` / `Ctrl + Y` | Undo / Redo |
+| `Ctrl + C` / `Ctrl + V` | Copy / Paste devices |
+| `Ctrl + A` | Select all devices |
+| `Ctrl + S` | Save project |
+| `Delete` | Delete selection |
+| `Arrows` | Nudge selection along the grid |
+| `Mouse wheel` | Zoom |
+| `Space + drag` / middle button | Pan |
+| Double-click a device | Toggle power |
+| `F1` | Help |
 
-> Скорочення працюють за будь-якої розкладки клавіатури (через `event.code`).
-
----
-
-## 🧱 Технології
-
-- **Бекенд:** Node.js + [Express](https://expressjs.com/) — роздача статики та збереження проєктів.
-- **Фронтенд:** HTML5 **Canvas** + чистий **JavaScript** (без фреймворків) — рендеринг, drag&drop, уся мережева логіка.
-- **Деплой:** [Vercel](https://vercel.com/) — статика з `public/` + serverless-функції в `api/`.
+> Shortcuts work on any keyboard layout (they use `event.code`).
 
 ---
 
-## 📁 Структура проєкту
+## 🧱 Tech stack
+
+- **Backend:** Node.js + [Express](https://expressjs.com/) — serves static files and stores projects.
+- **Frontend:** HTML5 **Canvas** + vanilla **JavaScript** (no frameworks) — rendering, drag & drop, all networking logic.
+- **Deployment:** [Vercel](https://vercel.com/) — static assets from `public/` + serverless functions in `api/`.
+
+---
+
+## 📁 Project structure
 
 ```
 SmartOKS_Network/
-├── server.js              # локальний Express-сервер (dev)
-├── vercel.json            # конфіг деплою Vercel
+├── server.js              # local Express server (dev)
+├── vercel.json            # Vercel deployment config
 ├── api/
-│   ├── projects.js        # serverless: список проєктів
-│   └── projects/[name].js # serverless: завантажити / зберегти / видалити
+│   ├── projects.js        # serverless: list projects
+│   └── projects/[name].js # serverless: load / save / delete
 └── public/
-    ├── index.html         # розмітка
-    ├── style.css          # теми (світла/темна) + стилі
-    ├── i18n.js            # словник UA/EN + рушій перекладу
-    ├── icons.js           # бібліотека SVG-іконок (Lucide-стиль)
-    ├── devices.js         # каталог типів пристроїв
-    ├── help.js            # модальне вікно довідки
-    └── app.js             # ядро: canvas-рушій, взаємодія, мережа, історія
+    ├── index.html         # markup
+    ├── style.css          # themes (light/dark) + styles
+    ├── i18n.js            # UA/EN dictionary + translation engine
+    ├── icons.js           # SVG icon library (Lucide style)
+    ├── devices.js         # device type catalog
+    ├── help.js            # help modal
+    └── app.js             # core: canvas engine, interaction, networking, history
 ```
 
-### Збереження проєктів
-- **Локально (Express):** файли в `data/*.json`.
-- **На Vercel (serverless):** тимчасове сховище `/tmp` (ефемерне). Надійне збереження — **автосейв у localStorage** браузера; для перенесення між пристроями використовуйте **експорт/імпорт `.json`**.
+### Project storage
+- **Local (Express):** files in `data/*.json`.
+- **On Vercel (serverless):** ephemeral `/tmp` storage. Reliable persistence comes from the **localStorage auto-save**; to move projects between devices use **JSON export/import**.
 
 ---
 
 ## 🌐 API
 
-| Метод | Шлях | Опис |
+| Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/projects` | список збережених проєктів |
-| `GET` | `/api/projects/:name` | завантажити проєкт |
-| `PUT` | `/api/projects/:name` | зберегти проєкт |
-| `DELETE` | `/api/projects/:name` | видалити проєкт |
+| `GET` | `/api/projects` | list saved projects |
+| `GET` | `/api/projects/:name` | load a project |
+| `PUT` | `/api/projects/:name` | save a project |
+| `DELETE` | `/api/projects/:name` | delete a project |
 
 ---
 
-## 🗺 Плани на майбутнє
+## 🗺 Roadmap
 
-- VLAN-и з кольоровими тегами портів.
-- Маршрутизація між підмережами з таблицями маршрутів.
-- Бібліотека шаблонів топологій (офіс, школа, ЦОД).
-- Постійне сховище замість ефемерного `/tmp` (Vercel KV / Postgres).
-- Спільне редагування в реальному часі (WebSocket).
-
----
-
-## 📄 Ліцензія
-
-MIT — використовуйте вільно.
+- VLANs with color-coded port tags.
+- Inter-subnet routing with routing tables.
+- Topology template library (office, school, data center).
+- Persistent storage instead of ephemeral `/tmp` (Vercel KV / Postgres).
+- Real-time collaborative editing (WebSocket).
 
 ---
 
-<p align="center">Зроблено з ❤️ для проєктування мереж · <a href="https://smartoks-network.vercel.app">smartoks-network.vercel.app</a></p>
+## 📄 License
+
+MIT — use freely.
+
+---
+
+<p align="center">Built with ❤️ for network design · <a href="https://smartoks-network.vercel.app">smartoks-network.vercel.app</a></p>
