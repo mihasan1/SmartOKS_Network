@@ -1,0 +1,122 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0f1420;
+  --panel: #171e2e;
+  --panel2: #1f283c;
+  --line: #2a3550;
+  --text: #dce3f0;
+  --muted: #7c89a6;
+  --accent: #3ea6ff;
+  --accent2: #38d39f;
+  --danger: #ff5a6a;
+}
+html, body { height: 100%; }
+body {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+/* ---- Верхняя панель ---- */
+#topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.brand { font-weight: 700; font-size: 16px; letter-spacing: .3px; }
+.tools, .actions { display: flex; align-items: center; gap: 6px; }
+.spacer { flex: 1; }
+button, select, input {
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: .12s;
+}
+button:hover, select:hover { border-color: var(--accent); }
+input { cursor: text; }
+.tool.active { background: var(--accent); color: #04111f; border-color: var(--accent); font-weight: 600; }
+#btn-sim.on { background: var(--accent2); color: #03130d; border-color: var(--accent2); }
+.sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+
+/* ---- Основная сетка ---- */
+#main { flex: 1; display: flex; min-height: 0; }
+aside {
+  background: var(--panel);
+  width: 230px;
+  flex-shrink: 0;
+  padding: 12px;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+}
+#inspector { border-right: none; border-left: 1px solid var(--line); width: 260px; }
+aside h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  color: var(--muted);
+  margin: 14px 0 8px;
+}
+aside h3:first-child { margin-top: 0; }
+
+.dev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.dev-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 9px 4px; background: var(--panel2); border: 1px solid var(--line);
+  border-radius: 8px; cursor: grab; text-align: center; user-select: none;
+}
+.dev-btn:hover { border-color: var(--accent); background: #233052; }
+.dev-btn .ico { font-size: 22px; line-height: 1; }
+.dev-btn .nm { font-size: 10px; color: var(--muted); }
+.dev-btn.dragging { opacity: .4; }
+
+.chk { display: flex; align-items: center; gap: 7px; padding: 4px 0; cursor: pointer; }
+.chk input { width: auto; }
+
+#status { font-size: 12px; color: var(--accent2); }
+.muted { color: var(--muted); }
+
+/* ---- Канвас ---- */
+#canvas-wrap { flex: 1; position: relative; min-width: 0; }
+#cv { width: 100%; height: 100%; display: block; cursor: default; }
+#hint {
+  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,.45); color: var(--muted); padding: 5px 12px;
+  border-radius: 20px; font-size: 11px; pointer-events: none;
+}
+
+/* ---- Инспектор ---- */
+.field { margin-bottom: 9px; }
+.field label { display: block; font-size: 11px; color: var(--muted); margin-bottom: 3px; }
+.field input, .field select { width: 100%; }
+.row { display: flex; gap: 6px; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; background: var(--panel2); }
+.badge.up { background: #163d2c; color: var(--accent2); }
+.badge.down { background: #3d1620; color: var(--danger); }
+
+#console {
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 11px; line-height: 1.5;
+  background: #0a0e16; border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px; height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+}
+#console .ok { color: var(--accent2); }
+#console .err { color: var(--danger); }
+#console .info { color: var(--accent); }
+#console .dim { color: var(--muted); }
+
+.btn-row { display: flex; gap: 6px; margin-top: 6px; }
+.btn-row button { flex: 1; }
+.btn-mini { padding: 5px 8px; font-size: 12px; }
