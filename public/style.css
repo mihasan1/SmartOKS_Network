@@ -119,6 +119,8 @@ aside h3:first-child { margin-top: 0; }
 #console .info { color: var(--accent); }
 #console .dim { color: var(--muted); }
 
+.warn { color: var(--danger); font-size: 11px; margin: -4px 0 8px; font-weight: 600; }
+input.bad { border-color: var(--danger); background: #2a1620; }
 .btn-row { display: flex; gap: 6px; margin-top: 6px; }
 .btn-row button { flex: 1; }
 .btn-mini { padding: 5px 8px; font-size: 12px; }

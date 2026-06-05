@@ -107,7 +107,8 @@ function makeDevice(kind, x, y) {
   const d = {
     id: uid("d"), kind, x, y,
     name: `${devName(kind)}-${count}`,
-    ip: "", mac: randMac(), on: true,
+    ip: "", mask: "", gateway: "", mac: randMac(), on: true,
+    dhcp: false,                       // лише для сервера: роль DHCP
   };
   model.devices.push(d);
   return d;
@@ -172,6 +173,24 @@ const byId = (id) => model.devices.find((d) => d.id === id);
 // Кількість зайнятих (кабельних) портів пристрою та наявність вільного
 const usedPorts = (d) => model.cables.filter((c) => c.a === d.id || c.b === d.id).length;
 const freePort = (d) => usedPorts(d) < T[d.kind].ports;
+
+/* ----- Мережа: валідація, конфлікти IP ----- */
+function isValidIP(s) {
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(s || "")) return false;
+  return s.split(".").every((o) => +o >= 0 && +o <= 255);
+}
+// Множина id пристроїв із дубльованою IP-адресою
+function ipConflictSet() {
+  const seen = new Map(), bad = new Set();
+  for (const d of model.devices) {
+    const ip = (d.ip || "").trim();
+    if (!ip) continue;
+    if (seen.has(ip)) { bad.add(d.id); bad.add(seen.get(ip)); }
+    else seen.set(ip, d.id);
+  }
+  return bad;
+}
+let conflictSet = new Set();   // перераховується в draw()
 
 function distToSeg(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1, dy = y2 - y1;
@@ -580,6 +599,8 @@ function components() {
   return comps;
 }
 
+const MASK24 = "255.255.255.0";
+
 function autoIP() {
   const comps = components().filter((c) => c.length > 1);
   let subnet = 0;
@@ -587,21 +608,47 @@ function autoIP() {
   for (const comp of comps) {
     const base = `192.168.${subnet}`;
     let host = 1;
-    // шлюз — первый роутер, если есть
+    // шлюз — перший роутер, якщо є
     const gw = comp.find((d) => d.kind === "router") || comp.find((d) => T[d.kind].forward);
-    if (gw) { gw.ip = `${base}.1`; gw.gateway = `${base}.1`; host = 2; }
+    if (gw) { gw.ip = `${base}.1`; gw.mask = MASK24; gw.gateway = `${base}.1`; host = 2; }
     for (const d of comp) {
       if (d === gw) continue;
-      if (T[d.kind].forward && d.kind !== "router") { d.ip = ""; continue; } // коммутаторы/хабы без IP
+      if (T[d.kind].forward && d.kind !== "router") { d.ip = ""; d.mask = ""; continue; } // комутатори/хаби без IP
       d.ip = `${base}.${host++}`;
+      d.mask = MASK24;
       d.gateway = gw ? `${base}.1` : "";
       assigned++;
     }
     subnet++;
   }
   log(t("log.autoip", { seg: comps.length, nodes: assigned }), "info");
+  const conf = ipConflictSet();
+  if (conf.size) log(t("log.conflicts", { n: conf.size }), "err");
   autosave(); commit(); draw();
   refreshInspector();
+}
+
+// DHCP: сервер видає адреси пристроям свого сегмента, що не мають статичної IP
+function runDHCP(server) {
+  const comp = components().find((c) => c.includes(server)) || [server];
+  let base = "192.168.50";
+  if (isValidIP(server.ip)) base = server.ip.split(".").slice(0, 3).join(".");
+  else { server.ip = `${base}.1`; server.mask = MASK24; }
+  const gw = comp.find((d) => d.kind === "router");
+  const gwIp = gw && isValidIP(gw.ip) ? gw.ip : `${base}.1`;
+  // зайняті адреси, щоб не дублювати
+  const taken = new Set(model.devices.map((d) => d.ip).filter(Boolean));
+  let host = 100, leased = 0;
+  for (const d of comp) {
+    if (d === server || T[d.kind].forward) continue;     // інфраструктуру пропускаємо
+    if (isValidIP(d.ip)) continue;                        // статичні не чіпаємо
+    let ip;
+    do { ip = `${base}.${host++}`; } while (taken.has(ip) && host < 255);
+    taken.add(ip);
+    d.ip = ip; d.mask = MASK24; d.gateway = gwIp; leased++;
+  }
+  log(t("log.dhcp", { name: server.name, n: leased }), "info");
+  autosave(); commit(); draw(); refreshInspector();
 }
 
 // Кратчайший путь между двумя устройствами (для анимации пинга)
@@ -693,6 +740,7 @@ function packetPos(p) {
    ==================================================================== */
 function draw() {
   const w = renderW ?? cv.clientWidth, h = renderH ?? cv.clientHeight;
+  conflictSet = ipConflictSet();
   ctx.save();
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = "#0f1420";
@@ -852,6 +900,14 @@ function drawDevice(d) {
   ctx.fillStyle = d.on ? "#38d39f" : "#ff5a6a";
   ctx.beginPath(); ctx.arc(15, -15, 3.5, 0, Math.PI * 2); ctx.fill();
 
+  // попередження про конфлікт IP
+  if (conflictSet.has(d.id)) {
+    ctx.strokeStyle = "#ff5a6a"; ctx.lineWidth = 2;
+    roundRect(-24, -24, 48, 48, 10); ctx.stroke();
+    ctx.font = "13px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("⚠", -15, -15);
+  }
+
   // порти: ряд індикаторів унизу корпусу (зайнятий = зелений, вільний = сірий)
   const total = dt.ports;
   const used = usedPorts(d);
@@ -913,13 +969,28 @@ function inspDevice(d) {
   const dt = T[d.kind];
   const others = model.devices.filter((x) => x !== d);
   const portsLabel = t("insp.portsUsed", { used: usedPorts(d), total: dt.ports }) + (dt.wireless ? t("insp.wifi") : "") + (dt.forward ? t("insp.forward") : "");
+  const conflict = conflictSet.has(d.id);
+  const ipBad = d.ip && !isValidIP(d.ip);
+  const warn = conflict ? `<div class="warn">${t("insp.ipConflict")}</div>`
+             : ipBad ? `<div class="warn">${t("insp.ipInvalid")}</div>` : "";
+  const dhcpBlock = d.kind === "server"
+    ? `<div class="field" style="margin-top:10px">
+         <label class="chk"><input type="checkbox" id="d-dhcp" ${d.dhcp ? "checked" : ""} /> ${t("insp.dhcp")}</label>
+         <button id="d-dhcp-run" class="btn-mini" style="width:100%;margin-top:6px">${t("insp.dhcpRun")}</button>
+       </div>` : "";
   inspBody.innerHTML = `
     <div class="field"><label>${t("insp.type")}</label><div class="badge">${dt.icon} ${devName(d.kind)}</div>
       <span class="badge ${d.on ? "up" : "down"}">${d.on ? t("insp.powerOnBadge") : t("insp.powerOffBadge")}</span></div>
     <div class="field"><label>${t("insp.name")}</label><input id="d-name" value="${escAttr(d.name)}" /></div>
-    <div class="field"><label>${t("insp.ip")}</label><input id="d-ip" value="${escAttr(d.ip)}" placeholder="${escAttr(t("insp.ipPlaceholder"))}" /></div>
+    <div class="field"><label>${t("insp.ip")}</label><input id="d-ip" class="${conflict || ipBad ? "bad" : ""}" value="${escAttr(d.ip)}" placeholder="${escAttr(t("insp.ipPlaceholder"))}" /></div>
+    ${warn}
+    <div class="row">
+      <div class="field" style="flex:1"><label>${t("insp.mask")}</label><input id="d-mask" value="${escAttr(d.mask)}" placeholder="255.255.255.0" /></div>
+      <div class="field" style="flex:1"><label>${t("insp.gateway")}</label><input id="d-gw" value="${escAttr(d.gateway)}" placeholder="—" /></div>
+    </div>
     <div class="field"><label>${t("insp.mac")}</label><input value="${d.mac}" readonly /></div>
     <div class="field"><label>${portsLabel}</label></div>
+    ${dhcpBlock}
     <div class="btn-row">
       <button id="d-power" class="btn-mini">${d.on ? t("insp.powerOffBtn") : t("insp.powerOnBtn")}</button>
       <button id="d-del" class="btn-mini">${t("insp.delete")}</button>
@@ -930,11 +1001,18 @@ function inspDevice(d) {
         <button id="d-ping" class="btn-mini">▶</button>
       </div>
     </div>`;
+  const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("input", fn); if (el) el.addEventListener("change", commit); };
   document.getElementById("d-name").addEventListener("input", (e) => { d.name = e.target.value; autosave(); draw(); });
   document.getElementById("d-name").addEventListener("change", commit);
   document.getElementById("d-ip").addEventListener("input", (e) => { d.ip = e.target.value; autosave(); draw(); });
-  document.getElementById("d-ip").addEventListener("change", commit);
+  document.getElementById("d-ip").addEventListener("change", () => { commit(); refreshInspector(); });
+  bind("d-mask", (e) => { d.mask = e.target.value; autosave(); });
+  bind("d-gw", (e) => { d.gateway = e.target.value; autosave(); });
   document.getElementById("d-power").addEventListener("click", () => { d.on = !d.on; refreshInspector(); draw(); autosave(); commit(); });
+  if (d.kind === "server") {
+    document.getElementById("d-dhcp").addEventListener("change", (e) => { d.dhcp = e.target.checked; autosave(); commit(); });
+    document.getElementById("d-dhcp-run").addEventListener("click", () => runDHCP(d));
+  }
   document.getElementById("d-ping").addEventListener("click", () => {
     const tg = byId(document.getElementById("d-target").value);
     if (tg) ping(d, tg);
