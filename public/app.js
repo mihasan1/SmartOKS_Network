@@ -126,6 +126,9 @@ function addCable(a, b) {
     log(t("log.alreadyConnected"), "err");
     return;
   }
+  // ліміт портів
+  if (!freePort(a)) { log(t("log.portFull", { name: a.name, n: T[a.kind].ports }), "err"); return; }
+  if (!freePort(b)) { log(t("log.portFull", { name: b.name, n: T[b.kind].ports }), "err"); return; }
   const fiber = a.kind === "server" || b.kind === "server" || a.kind === "router" && b.kind === "router";
   const c = { id: uid("c"), a: a.id, b: b.id, type: fiber ? "fiber" : "copper" };
   model.cables.push(c);
@@ -165,6 +168,10 @@ function wallAt(wx, wy) {
   return null;
 }
 const byId = (id) => model.devices.find((d) => d.id === id);
+
+// Кількість зайнятих (кабельних) портів пристрою та наявність вільного
+const usedPorts = (d) => model.cables.filter((c) => c.a === d.id || c.b === d.id).length;
+const freePort = (d) => usedPorts(d) < T[d.kind].ports;
 
 function distToSeg(px, py, x1, y1, x2, y2) {
   const dx = x2 - x1, dy = y2 - y1;
@@ -844,6 +851,17 @@ function drawDevice(d) {
   // индикатор питания
   ctx.fillStyle = d.on ? "#38d39f" : "#ff5a6a";
   ctx.beginPath(); ctx.arc(15, -15, 3.5, 0, Math.PI * 2); ctx.fill();
+
+  // порти: ряд індикаторів унизу корпусу (зайнятий = зелений, вільний = сірий)
+  const total = dt.ports;
+  const used = usedPorts(d);
+  const show = Math.min(total, 8);
+  const gap = Math.min(7, 38 / Math.max(show, 1));
+  const startX = -((show - 1) * gap) / 2;
+  for (let i = 0; i < show; i++) {
+    ctx.fillStyle = i < used ? "#38d39f" : "#46557a";
+    ctx.beginPath(); ctx.arc(startX + i * gap, 17, 1.8, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
 
   if (layers.labels) {
@@ -894,7 +912,7 @@ function refreshInspector() {
 function inspDevice(d) {
   const dt = T[d.kind];
   const others = model.devices.filter((x) => x !== d);
-  const portsLabel = t("insp.ports", { n: dt.ports }) + (dt.wireless ? t("insp.wifi") : "") + (dt.forward ? t("insp.forward") : "");
+  const portsLabel = t("insp.portsUsed", { used: usedPorts(d), total: dt.ports }) + (dt.wireless ? t("insp.wifi") : "") + (dt.forward ? t("insp.forward") : "");
   inspBody.innerHTML = `
     <div class="field"><label>${t("insp.type")}</label><div class="badge">${dt.icon} ${devName(d.kind)}</div>
       <span class="badge ${d.on ? "up" : "down"}">${d.on ? t("insp.powerOnBadge") : t("insp.powerOffBadge")}</span></div>

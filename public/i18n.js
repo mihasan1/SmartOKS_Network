@@ -66,6 +66,8 @@ const I18N = {
     "status.selected": "Виділено пристроїв: {n}",
     "log.copied": "Скопійовано пристроїв: {n}",
     "log.pasted": "Вставлено пристроїв: {n}",
+    "log.portFull": "{name}: немає вільних портів (усього {n})",
+    "insp.portsUsed": "Порти: {used}/{total}",
 
     "dev.pc": "ПК",
     "dev.laptop": "Ноутбук",
@@ -185,6 +187,8 @@ const I18N = {
     "status.selected": "Selected devices: {n}",
     "log.copied": "Copied devices: {n}",
     "log.pasted": "Pasted devices: {n}",
+    "log.portFull": "{name}: no free ports (total {n})",
+    "insp.portsUsed": "Ports: {used}/{total}",
 
     "dev.pc": "PC",
     "dev.laptop": "Laptop",
