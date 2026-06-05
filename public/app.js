@@ -40,6 +40,60 @@ const layers = { rooms: true, grid: true, labels: true };
 let packets = [];   // {path:[{x,y}...], t, color, onDone}
 
 /* ====================================================================
+   Теми (кольори canvas) + кеш SVG-іконок
+   ==================================================================== */
+const THEMES = {
+  light: {
+    canvasBg: "#eef1f6", grid: "rgba(120,138,170,.16)",
+    roomFill: "rgba(59,130,246,.05)", roomFillDraft: "rgba(59,130,246,.12)",
+    roomStroke: "#cdd5e2", roomLabel: "#7a8499", wall: "#aab3c4",
+    cableCopper: "#9aa6be", cableFiber: "#f0a93a",
+    deviceFill: "#ffffff", deviceFillOff: "#eef0f4", deviceBorder: "#e2e7f0", deviceOff: "#c2cad7",
+    label: "#1b2233", sub: "#8a93a6", pipFree: "#cfd6e2",
+    sel: "#3b82f6", ok: "#22c55e", danger: "#ef4655",
+  },
+  dark: {
+    canvasBg: "#1b1f29", grid: "rgba(255,255,255,.045)",
+    roomFill: "rgba(79,140,255,.06)", roomFillDraft: "rgba(79,140,255,.12)",
+    roomStroke: "#3a414f", roomLabel: "#8b94a7", wall: "#6b7488",
+    cableCopper: "#5c6b8f", cableFiber: "#ffd166",
+    deviceFill: "#262b36", deviceFillOff: "#1d212a", deviceBorder: "#363c49", deviceOff: "#444b59",
+    label: "#e7eaf1", sub: "#8b94a7", pipFree: "#3c4350",
+    sel: "#4f8cff", ok: "#34d399", danger: "#ff6170",
+  },
+};
+let THEME_NAME = localStorage.getItem("netplanner:theme") || "light";
+let TH = THEMES[THEME_NAME];
+
+function setTheme(name) {
+  if (!THEMES[name]) return;
+  THEME_NAME = name;
+  TH = THEMES[name];
+  document.documentElement.dataset.theme = name;
+  localStorage.setItem("netplanner:theme", name);
+  const tb = document.getElementById("theme-toggle");
+  if (tb) tb.innerHTML = window.svgInline(name === "dark" ? "sun" : "moon");
+  _iconCache = {};            // перемалювати іконки під нову тему за потреби
+  draw();
+}
+
+// Кеш растрованих SVG-іконок для canvas
+let _iconCache = {};
+function iconImg(name, color) {
+  const key = name + "|" + color;
+  if (_iconCache[key]) return _iconCache[key];
+  const img = new Image();
+  img.onload = () => draw();
+  img.src = window.svgDataURL(name, color, 48);
+  _iconCache[key] = img;
+  return img;
+}
+function drawIconImg(name, color, cx, cy, size) {
+  const img = iconImg(name, color);
+  if (img.complete && img.naturalWidth) ctx.drawImage(img, cx - size / 2, cy - size / 2, size, size);
+}
+
+/* ====================================================================
    Утилиты координат
    ==================================================================== */
 function resize() {
@@ -72,7 +126,7 @@ function buildPalette() {
     const b = document.createElement("div");
     b.className = "dev-btn";
     b.draggable = true;
-    b.innerHTML = `<span class="ico">${dt.icon}</span><span class="nm">${devName(kind)}</span>`;
+    b.innerHTML = `<span class="ico">${window.svgInline(kind, { color: dt.color, size: 24 })}</span><span class="nm">${devName(kind)}</span>`;
     b.addEventListener("dragstart", (e) => {
       e.dataTransfer.setData("kind", kind);
       b.classList.add("dragging");
@@ -714,7 +768,7 @@ function ping(src, dst) {
   const fire = () => {
     if (seq >= 4) return;
     packets.push({
-      path: pts, t: 0, color: "#38d39f",
+      path: pts, t: 0, color: TH.ok,
       onDone: () => {
         const ms = (Math.random() * 8 + 1).toFixed(1);
         log(t("ping.reply", { ip: dst.ip || dst.name, ms }), "ok");
@@ -773,7 +827,7 @@ function draw() {
   conflictSet = ipConflictSet();
   ctx.save();
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "#0f1420";
+  ctx.fillStyle = TH.canvasBg;
   ctx.fillRect(0, 0, w, h);
 
   ctx.translate(view.x, view.y);
@@ -787,7 +841,7 @@ function draw() {
 
   model.cables.forEach(drawCable);
   if (tool === "cable" && cableFrom) {
-    ctx.strokeStyle = "#3ea6ff"; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+    ctx.strokeStyle = TH.sel; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
     ctx.beginPath(); ctx.moveTo(cableFrom.x, cableFrom.y); ctx.lineTo(mouse.wx, mouse.wy); ctx.stroke();
     ctx.setLineDash([]);
   }
@@ -801,7 +855,7 @@ function draw() {
 
   // підсвітка мультивиділення
   if (multi.length) {
-    ctx.strokeStyle = "#38d39f"; ctx.lineWidth = 2 / view.scale; ctx.setLineDash([5 / view.scale, 4 / view.scale]);
+    ctx.strokeStyle = TH.ok; ctx.lineWidth = 2 / view.scale; ctx.setLineDash([5 / view.scale, 4 / view.scale]);
     multi.forEach((d) => { ctx.strokeRect(d.x - 25, d.y - 25, 50, 50); });
     ctx.setLineDash([]);
   }
@@ -811,7 +865,7 @@ function draw() {
     const x = Math.min(marquee.x0, marquee.x1), y = Math.min(marquee.y0, marquee.y1);
     const mw = Math.abs(marquee.x1 - marquee.x0), mh = Math.abs(marquee.y1 - marquee.y0);
     ctx.fillStyle = "rgba(56,211,159,.10)";
-    ctx.strokeStyle = "#38d39f"; ctx.lineWidth = 1 / view.scale; ctx.setLineDash([4 / view.scale, 3 / view.scale]);
+    ctx.strokeStyle = TH.ok; ctx.lineWidth = 1 / view.scale; ctx.setLineDash([4 / view.scale, 3 / view.scale]);
     ctx.fillRect(x, y, mw, mh); ctx.strokeRect(x, y, mw, mh);
     ctx.setLineDash([]);
   }
@@ -836,7 +890,7 @@ function drawHandles(hs) {
   ctx.lineWidth = 1.5 / view.scale;
   for (const k in hs) {
     const [hx, hy] = hs[k];
-    ctx.fillStyle = "#3ea6ff";
+    ctx.fillStyle = TH.sel;
     ctx.strokeStyle = "#fff";
     ctx.beginPath();
     ctx.rect(hx - s, hy - s, s * 2, s * 2);
@@ -847,7 +901,7 @@ function drawHandles(hs) {
 function drawGrid(w, h) {
   const x0 = -view.x / view.scale, y0 = -view.y / view.scale;
   const x1 = x0 + w / view.scale, y1 = y0 + h / view.scale;
-  ctx.strokeStyle = "rgba(42,53,80,.5)";
+  ctx.strokeStyle = TH.grid;
   ctx.lineWidth = 1 / view.scale;
   ctx.beginPath();
   for (let x = Math.floor(x0 / GRID) * GRID; x < x1; x += GRID) { ctx.moveTo(x, y0); ctx.lineTo(x, y1); }
@@ -859,21 +913,21 @@ function drawRoom(r, draft) {
   const x = draft ? Math.min(r.x, r.x + r.w) : r.x;
   const y = draft ? Math.min(r.y, r.y + r.h) : r.y;
   const ww = Math.abs(r.w), hh = Math.abs(r.h);
-  ctx.fillStyle = draft ? "rgba(62,166,255,.10)" : "rgba(42,53,80,.35)";
+  ctx.fillStyle = draft ? TH.roomFillDraft : TH.roomFill;
   ctx.fillRect(x, y, ww, hh);
-  ctx.strokeStyle = isSel(r) ? "#3ea6ff" : "#4a5980";
+  ctx.strokeStyle = isSel(r) ? TH.sel : TH.roomStroke;
   ctx.lineWidth = 2;
   ctx.strokeRect(x, y, ww, hh);
   if (!draft && layers.labels) {
-    ctx.fillStyle = "#8a98ba";
-    ctx.font = "12px Segoe UI";
-    ctx.textAlign = "left";
-    ctx.fillText("▭ " + r.name, x + 6, y + 16);
+    ctx.fillStyle = TH.roomLabel;
+    ctx.font = "600 12px Inter, Segoe UI";
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillText(r.name, x + 8, y + 17);
   }
 }
 
 function drawWall(w) {
-  ctx.strokeStyle = isSel(w) ? "#3ea6ff" : "#8895b5";
+  ctx.strokeStyle = isSel(w) ? TH.sel : TH.wall;
   ctx.lineWidth = 6;
   ctx.lineCap = "round";
   ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); ctx.stroke();
@@ -882,10 +936,10 @@ function drawWall(w) {
 function drawCable(c) {
   const a = byId(c.a), b = byId(c.b);
   if (!a || !b) return;
-  const live = (simOn || true) && a.on && b.on;
-  let color = c.type === "fiber" ? "#ffd166" : "#5c6b8f";
-  if (simOn) color = live ? "#38d39f" : "#ff5a6a";
-  ctx.strokeStyle = isSel(c) ? "#3ea6ff" : color;
+  const live = a.on && b.on;
+  let color = c.type === "fiber" ? TH.cableFiber : TH.cableCopper;
+  if (simOn) color = live ? TH.ok : TH.danger;
+  ctx.strokeStyle = isSel(c) ? TH.sel : color;
   ctx.lineWidth = c.type === "fiber" ? 3.5 : 3;
   ctx.lineCap = "round";
   // лёгкий провис провода
@@ -902,7 +956,7 @@ function drawCable(c) {
 function drawWifiRange(d) {
   const rng = rangeOf(d);
   const sel = isSel(d);
-  ctx.strokeStyle = sel ? "rgba(62,166,255,.5)" : "rgba(255,107,157,.25)";
+  ctx.strokeStyle = sel ? TH.sel : "rgba(255,107,157,.3)";
   ctx.fillStyle = "rgba(255,107,157,.05)";
   ctx.lineWidth = sel ? 2 : 1.5;
   ctx.setLineDash([5, 6]);
@@ -913,10 +967,10 @@ function drawWifiRange(d) {
   if (sel) {
     const [hx, hy] = rangeHandlePos(d);
     const s = 5 / view.scale;
-    ctx.fillStyle = "#3ea6ff"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5 / view.scale;
+    ctx.fillStyle = TH.sel; ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5 / view.scale;
     ctx.beginPath(); ctx.arc(hx, hy, s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     // підпис радіуса
-    ctx.fillStyle = "#9fb0d0"; ctx.font = `${11 / view.scale}px Segoe UI`;
+    ctx.fillStyle = TH.sub; ctx.font = `${11 / view.scale}px Inter, Segoe UI`;
     ctx.textAlign = "left"; ctx.textBaseline = "middle";
     ctx.fillText(`${Math.round(rng)} px`, hx + 8 / view.scale, hy);
   }
@@ -925,60 +979,57 @@ function drawWifiRange(d) {
 function drawDevice(d) {
   const dt = T[d.kind];
   const sel = isSel(d);
-  // корпус
+  // корпус (картка зі скругленням і тінню)
   ctx.save();
   ctx.translate(d.x, d.y);
-  ctx.fillStyle = d.on ? "#1f283c" : "#161b27";
-  ctx.strokeStyle = sel ? "#3ea6ff" : (d.on ? dt.color : "#44506e");
-  ctx.lineWidth = sel ? 3 : 2;
-  roundRect(-22, -22, 44, 44, 9);
-  ctx.fill(); ctx.stroke();
-  // іконка
-  ctx.globalAlpha = d.on ? 1 : 0.4;
-  ctx.font = "22px serif";
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(dt.icon, 0, 1);
-  ctx.globalAlpha = 1;
+  ctx.shadowColor = "rgba(20,30,60,.12)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
+  ctx.fillStyle = d.on ? TH.deviceFill : TH.deviceFillOff;
+  roundRect(-22, -22, 44, 44, 12);
+  ctx.fill();
+  ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  ctx.strokeStyle = sel ? TH.sel : TH.deviceBorder;
+  ctx.lineWidth = sel ? 2.5 : 1.5;
+  roundRect(-22, -22, 44, 44, 12);
+  ctx.stroke();
+
+  // SVG-іконка пристрою
+  drawIconImg(d.kind, d.on ? dt.color : TH.deviceOff, 0, 0, 24);
+
   // индикатор питания
-  ctx.fillStyle = d.on ? "#38d39f" : "#ff5a6a";
-  ctx.beginPath(); ctx.arc(15, -15, 3.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = d.on ? TH.ok : TH.danger;
+  ctx.beginPath(); ctx.arc(15, -15, 3.2, 0, Math.PI * 2); ctx.fill();
 
-  // попередження про конфлікт IP
+  // позначка Wi-Fi
+  if (canWifi(d)) drawIconImg("wifi", d.on ? TH.sel : TH.deviceOff, -14, -14, 12);
+
+  // конфлікт IP
   if (conflictSet.has(d.id)) {
-    ctx.strokeStyle = "#ff5a6a"; ctx.lineWidth = 2;
-    roundRect(-24, -24, 48, 48, 10); ctx.stroke();
-    ctx.font = "13px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("⚠", -15, -15);
+    ctx.strokeStyle = TH.danger; ctx.lineWidth = 2;
+    roundRect(-24, -24, 48, 48, 13); ctx.stroke();
+    drawIconImg("alert", TH.danger, 16, 16, 14);
   }
 
-  // позначка Wi-Fi для пристрою з увімкненим бездротовим підключенням
-  if (canWifi(d)) {
-    ctx.fillStyle = d.on ? "#56b6ff" : "#44506e";
-    ctx.font = "11px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("📶", -15, -15);
-  }
-
-  // порти: ряд індикаторів унизу корпусу (зайнятий = зелений, вільний = сірий)
+  // порти: ряд індикаторів унизу
   const total = portCount(d);
   const used = usedPorts(d);
   const show = Math.min(total, 8);
-  const gap = Math.min(7, 38 / Math.max(show, 1));
+  const gap = Math.min(7, 34 / Math.max(show, 1));
   const startX = -((show - 1) * gap) / 2;
   for (let i = 0; i < show; i++) {
-    ctx.fillStyle = i < used ? "#38d39f" : "#46557a";
+    ctx.fillStyle = i < used ? TH.ok : TH.pipFree;
     ctx.beginPath(); ctx.arc(startX + i * gap, 17, 1.8, 0, Math.PI * 2); ctx.fill();
   }
   ctx.restore();
 
   if (layers.labels) {
-    ctx.fillStyle = "#dce3f0";
-    ctx.font = "11px Segoe UI";
+    ctx.fillStyle = TH.label;
+    ctx.font = "600 11px Inter, Segoe UI";
     ctx.textAlign = "center"; ctx.textBaseline = "top";
-    ctx.fillText(d.name, d.x, d.y + 26);
+    ctx.fillText(d.name, d.x, d.y + 28);
     if (d.ip) {
-      ctx.fillStyle = "#7c89a6";
+      ctx.fillStyle = TH.sub;
       ctx.font = "10px Cascadia Code, monospace";
-      ctx.fillText(d.ip, d.x, d.y + 39);
+      ctx.fillText(d.ip, d.x, d.y + 41);
     }
   }
 }
@@ -1035,10 +1086,10 @@ function inspDevice(d) {
   const dhcpBlock = d.kind === "server"
     ? `<div class="field" style="margin-top:10px">
          <label class="chk"><input type="checkbox" id="d-dhcp" ${d.dhcp ? "checked" : ""} /> ${t("insp.dhcp")}</label>
-         <button id="d-dhcp-run" class="btn-mini" style="width:100%;margin-top:6px">${t("insp.dhcpRun")}</button>
+         <button id="d-dhcp-run" class="btn-mini" style="width:100%;margin-top:6px">${window.svgInline("globe")}${t("insp.dhcpRun")}</button>
        </div>` : "";
   inspBody.innerHTML = `
-    <div class="field"><label>${t("insp.type")}</label><div class="badge">${dt.icon} ${devName(d.kind)}</div>
+    <div class="field"><label>${t("insp.type")}</label><div class="badge">${window.svgInline(d.kind, { color: dt.color, size: 14 })} ${devName(d.kind)}</div>
       <span class="badge ${d.on ? "up" : "down"}">${d.on ? t("insp.powerOnBadge") : t("insp.powerOffBadge")}</span></div>
     <div class="field"><label>${t("insp.name")}</label><input id="d-name" value="${escAttr(d.name)}" /></div>
     <div class="field"><label>${t("insp.ip")}</label><input id="d-ip" class="${conflict || ipBad ? "bad" : ""}" value="${escAttr(d.ip)}" placeholder="${escAttr(t("insp.ipPlaceholder"))}" /></div>
@@ -1054,13 +1105,13 @@ function inspDevice(d) {
     ${rangeField}
     ${dhcpBlock}
     <div class="btn-row">
-      <button id="d-power" class="btn-mini">${d.on ? t("insp.powerOffBtn") : t("insp.powerOnBtn")}</button>
-      <button id="d-del" class="btn-mini">${t("insp.delete")}</button>
+      <button id="d-power" class="btn-mini">${window.svgInline("power")}${d.on ? t("insp.powerOffBtn") : t("insp.powerOnBtn")}</button>
+      <button id="d-del" class="btn-mini">${window.svgInline("trash")}${t("insp.delete")}</button>
     </div>
     <div class="field" style="margin-top:12px"><label>${t("insp.pingTo")}</label>
       <div class="row">
         <select id="d-target">${others.map((o) => `<option value="${o.id}">${escHtml(o.name)}</option>`).join("")}</select>
-        <button id="d-ping" class="btn-mini">▶</button>
+        <button id="d-ping" class="btn-mini">${window.svgInline("play")}</button>
       </div>
     </div>`;
   const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("input", fn); if (el) el.addEventListener("change", commit); };
@@ -1113,7 +1164,7 @@ function inspRoom(r) {
       <div class="field" style="flex:1"><label>${t("insp.width")}</label><input id="r-w" type="number" value="${Math.round(r.w)}" /></div>
       <div class="field" style="flex:1"><label>${t("insp.height")}</label><input id="r-h" type="number" value="${Math.round(r.h)}" /></div>
     </div>
-    <div class="btn-row"><button id="d-del" class="btn-mini">${t("insp.delete")}</button></div>`;
+    <div class="btn-row"><button id="d-del" class="btn-mini">${window.svgInline("trash")}${t("insp.delete")}</button></div>`;
   document.getElementById("r-name").addEventListener("input", (e) => { r.name = e.target.value; autosave(); draw(); });
   document.getElementById("r-name").addEventListener("change", commit);
   document.getElementById("r-w").addEventListener("input", (e) => { r.w = +e.target.value || r.w; autosave(); draw(); });
@@ -1132,7 +1183,7 @@ function inspCable(c) {
         <option value="copper" ${c.type === "copper" ? "selected" : ""}>${t("cable.copper")}</option>
         <option value="fiber" ${c.type === "fiber" ? "selected" : ""}>${t("cable.fiber")}</option>
       </select></div>
-    <div class="btn-row"><button id="d-del" class="btn-mini">${t("insp.delete")}</button></div>`;
+    <div class="btn-row"><button id="d-del" class="btn-mini">${window.svgInline("trash")}${t("insp.delete")}</button></div>`;
   document.getElementById("c-type").addEventListener("change", (e) => { c.type = e.target.value; autosave(); commit(); draw(); });
   bindDel();
 }
@@ -1403,6 +1454,17 @@ function boot() {
   resize();
   // центруємо вид
   view.x = 60; view.y = 40;
+
+  // ----- SVG-іконки у кнопки -----
+  document.querySelectorAll("[data-icon]").forEach((el) => {
+    el.insertAdjacentHTML("afterbegin", window.svgInline(el.dataset.icon));
+  });
+
+  // ----- тема -----
+  setTheme(THEME_NAME);
+  document.getElementById("theme-toggle").addEventListener("click", () => {
+    setTheme(THEME_NAME === "dark" ? "light" : "dark");
+  });
 
   // ----- мова / i18n -----
   const langSel = document.getElementById("lang-sel");

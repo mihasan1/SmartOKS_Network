@@ -8,37 +8,44 @@
 </head>
 <body>
   <header id="topbar">
-    <div class="brand">🖧 SmartOKS · Network Planner</div>
+    <div class="brand">
+      <span class="logo" data-icon="network"></span>
+      <span>SmartOKS · Network Planner</span>
+    </div>
+    <span class="sep"></span>
     <div class="tools">
-      <button data-tool="select" class="tool active" data-i18n="tool.select" data-i18n-title="tool.select.title">Вибір</button>
-      <button data-tool="room" class="tool" data-i18n="tool.room" data-i18n-title="tool.room.title">Кімната</button>
-      <button data-tool="wall" class="tool" data-i18n="tool.wall" data-i18n-title="tool.wall.title">Стіна</button>
-      <button data-tool="cable" class="tool" data-i18n="tool.cable" data-i18n-title="tool.cable.title">Провід</button>
-      <button data-tool="erase" class="tool" data-i18n="tool.erase" data-i18n-title="tool.erase.title">Видалити</button>
+      <button data-tool="select" class="tool active" data-icon="cursor" data-i18n-title="tool.select.title"><span class="lbl" data-i18n="tool.select">Вибір</span></button>
+      <button data-tool="room" class="tool" data-icon="square" data-i18n-title="tool.room.title"><span class="lbl" data-i18n="tool.room">Кімната</span></button>
+      <button data-tool="wall" class="tool" data-icon="wall" data-i18n-title="tool.wall.title"><span class="lbl" data-i18n="tool.wall">Стіна</span></button>
+      <button data-tool="cable" class="tool" data-icon="cable" data-i18n-title="tool.cable.title"><span class="lbl" data-i18n="tool.cable">Провід</span></button>
+      <button data-tool="erase" class="tool" data-icon="trash" data-i18n-title="tool.erase.title"><span class="lbl" data-i18n="tool.erase">Видалити</span></button>
       <span class="sep"></span>
-      <button id="btn-undo" class="icon-btn" data-i18n-title="act.undo.title" disabled>↶</button>
-      <button id="btn-redo" class="icon-btn" data-i18n-title="act.redo.title" disabled>↷</button>
+      <button id="btn-undo" class="icon-btn" data-icon="undo" data-i18n-title="act.undo.title" disabled></button>
+      <button id="btn-redo" class="icon-btn" data-icon="redo" data-i18n-title="act.redo.title" disabled></button>
     </div>
     <div class="spacer"></div>
     <div class="actions">
-      <button id="btn-sim" data-i18n="act.sim" data-i18n-title="act.sim.title">Симуляція</button>
-      <button id="btn-autoip" data-i18n="act.autoip" data-i18n-title="act.autoip.title">Авто-IP</button>
-      <button id="btn-clear" data-i18n="act.clear" data-i18n-title="act.clear.title">Очистити</button>
+      <button id="btn-sim" data-icon="play" data-i18n-title="act.sim.title"><span class="lbl" data-i18n="act.sim">Симуляція</span></button>
+      <button id="btn-autoip" data-icon="globe" data-i18n-title="act.autoip.title"><span class="lbl" data-i18n="act.autoip">Авто-IP</span></button>
+      <button id="btn-clear" class="icon-btn" data-icon="x" data-i18n-title="act.clear.title"></button>
       <span class="sep"></span>
-      <input id="proj-name" data-i18n-ph="proj.placeholder" value="моя-мережа" />
-      <button id="btn-save" data-i18n="act.save">Зберегти</button>
+      <button id="btn-save" data-icon="save" data-i18n-title="act.save"><span class="lbl" data-i18n="act.save">Зберегти</span></button>
       <select id="proj-list"><option value="" data-i18n="proj.open">— відкрити —</option></select>
-      <span class="sep"></span>
-      <button id="btn-png" class="icon-btn" data-i18n-title="act.png.title">🖼</button>
-      <button id="btn-export" class="icon-btn" data-i18n-title="act.exportJson.title">⤓</button>
-      <button id="btn-import" class="icon-btn" data-i18n-title="act.importJson.title">⤒</button>
-      <button id="btn-print" class="icon-btn" data-i18n-title="act.print.title">🖨</button>
+      <button id="btn-png" class="icon-btn" data-icon="image" data-i18n-title="act.png.title"></button>
+      <button id="btn-export" class="icon-btn" data-icon="download" data-i18n-title="act.exportJson.title"></button>
+      <button id="btn-import" class="icon-btn" data-icon="upload" data-i18n-title="act.importJson.title"></button>
+      <button id="btn-print" class="icon-btn" data-icon="print" data-i18n-title="act.print.title"></button>
       <input type="file" id="file-import" accept="application/json,.json" style="display:none" />
       <span class="sep"></span>
+      <button id="theme-toggle" class="icon-btn" title="Тема / Theme"></button>
       <select id="lang-sel" title="Мова / Language">
         <option value="uk">Українська</option>
         <option value="en">English</option>
       </select>
+      <div class="user">
+        <span class="avatar">SP</span>
+        <span class="uname">SmartOKS</span>
+      </div>
     </div>
   </header>
 
@@ -68,6 +75,7 @@
   </div>
 
   <script src="i18n.js"></script>
+  <script src="icons.js"></script>
   <script src="devices.js"></script>
   <script src="app.js"></script>
 </body>
