@@ -1477,6 +1477,7 @@ function boot() {
     refreshProjects();
     refreshInspector();
     setStatus(t("status.ready"));
+    if (window.refreshHelp) window.refreshHelp();
     draw();
   };
   window.applyI18n();
