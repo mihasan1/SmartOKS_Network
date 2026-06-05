@@ -89,6 +89,8 @@ const I18N = {
     "dev.nvr": "Відеореєстратор",
     "insp.portsCount": "Кількість портів",
     "insp.wifiToggle": "Підключення по Wi-Fi",
+    "insp.wifiRange": "Радіус Wi-Fi (px)",
+    "insp.wifiRangeHint": "Підказка: радіус можна тягнути за маркер на колі покриття",
 
     "log.added": "Додано: {name}",
     "log.removed": "Видалено: {name}",
@@ -222,6 +224,8 @@ const I18N = {
     "dev.nvr": "NVR recorder",
     "insp.portsCount": "Number of ports",
     "insp.wifiToggle": "Wi-Fi connectivity",
+    "insp.wifiRange": "Wi-Fi range (px)",
+    "insp.wifiRangeHint": "Tip: drag the marker on the coverage circle to change the radius",
 
     "log.added": "Added: {name}",
     "log.removed": "Removed: {name}",

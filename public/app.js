@@ -174,6 +174,12 @@ const byId = (id) => model.devices.find((d) => d.id === id);
 const portCount = (d) => (d.ports != null ? d.ports : T[d.kind].ports);
 const canWifi = (d) => (d.wifi != null ? d.wifi : T[d.kind].wireless);
 
+// Радіус покриття Wi-Fi (індивідуальний на пристрої або глобальний за замовч.)
+const RANGE_MIN = 60, RANGE_MAX = 600;
+const rangeOf = (d) => (d.range != null ? d.range : WIRELESS_RANGE);
+// Чи пристрій є джерелом Wi-Fi-покриття (малює коло, має радіус)
+const isWifiSource = (d) => canWifi(d) && T[d.kind].forward;
+
 // Кількість зайнятих (кабельних) портів пристрою та наявність вільного
 const usedPorts = (d) => model.cables.filter((c) => c.a === d.id || c.b === d.id).length;
 const freePort = (d) => usedPorts(d) < portCount(d);
@@ -224,12 +230,21 @@ function wallHandles(wl) { return { a: [wl.x1, wl.y1], b: [wl.x2, wl.y2] }; }
 const HANDLE_CURSOR = {
   nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize",
   n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", a: "move", b: "move",
+  range: "ew-resize",
 };
+
+// Точка ручки радіуса Wi-Fi (на колі, праворуч від центру)
+function rangeHandlePos(d) { return [d.x + rangeOf(d), d.y]; }
 
 // Знайти ручку під курсором для виділеного об'єкта
 function handleAt(wx, wy) {
   if (!selected) return null;
   const tol = 8 / view.scale;
+  // ручка радіуса Wi-Fi для виділеного джерела
+  if (selected.type === "device" && isWifiSource(selected.ref) && selected.ref.on) {
+    const [hx, hy] = rangeHandlePos(selected.ref);
+    if (Math.hypot(wx - hx, wy - hy) <= tol) return "range";
+  }
   let hs = null;
   if (selected.type === "room") hs = roomHandles(selected.ref);
   else if (selected.type === "wall") hs = wallHandles(selected.ref);
@@ -316,7 +331,8 @@ cv.addEventListener("mousedown", (e) => {
     // 1) ручка зміни розміру виділеного об'єкта має пріоритет
     const handle = handleAt(w.x, w.y);
     if (handle) {
-      resizing = { kind: selected.type, ref: selected.ref, handle };
+      const kind = handle === "range" ? "range" : selected.type;
+      resizing = { kind, ref: selected.ref, handle };
       return;
     }
     const d = deviceAt(w.x, w.y);
@@ -386,6 +402,12 @@ cv.addEventListener("mousemove", (e) => {
   if (resizing) {
     if (resizing.kind === "room") resizeRoom(resizing.ref, resizing.handle, w.x, w.y);
     else if (resizing.kind === "wall") resizeWall(resizing.ref, resizing.handle, w.x, w.y);
+    else if (resizing.kind === "range") {
+      const dd = resizing.ref;
+      const r = Math.round(Math.hypot(w.x - dd.x, w.y - dd.y) / 5) * 5;
+      dd.range = Math.max(RANGE_MIN, Math.min(RANGE_MAX, r));
+      refreshInspector();
+    }
     if (selected && selected.type === "room") refreshInspector();
     draw();
     return;
@@ -571,12 +593,16 @@ function neighbors(d) {
     if (c.a === d.id) { const o = byId(c.b); if (o && o.on) out.push(o); }
     if (c.b === d.id) { const o = byId(c.a); if (o && o.on) out.push(o); }
   }
-  // бездротові сусіди: обидва Wi-Fi і хоча б один роздає (forward — роутер/AP)
+  // бездротові сусіди: обидва Wi-Fi і хоча б один роздає (forward — роутер/AP).
+  // Покриття визначається радіусом джерела (роздавача).
   if (canWifi(d) && d.on) {
     for (const o of model.devices) {
       if (o === d || !o.on || !canWifi(o)) continue;
-      if (!(T[d.kind].forward || T[o.kind].forward)) continue;
-      if (Math.hypot(o.x - d.x, o.y - d.y) <= WIRELESS_RANGE) out.push(o);
+      let rng = 0;
+      if (T[d.kind].forward) rng = Math.max(rng, rangeOf(d));
+      if (T[o.kind].forward) rng = Math.max(rng, rangeOf(o));
+      if (rng === 0) continue;                         // жоден не роздає — асоціації немає
+      if (Math.hypot(o.x - d.x, o.y - d.y) <= rng) out.push(o);
     }
   }
   return out;
@@ -874,13 +900,26 @@ function drawCable(c) {
 }
 
 function drawWifiRange(d) {
-  ctx.strokeStyle = "rgba(255,107,157,.25)";
+  const rng = rangeOf(d);
+  const sel = isSel(d);
+  ctx.strokeStyle = sel ? "rgba(62,166,255,.5)" : "rgba(255,107,157,.25)";
   ctx.fillStyle = "rgba(255,107,157,.05)";
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = sel ? 2 : 1.5;
   ctx.setLineDash([5, 6]);
-  ctx.beginPath(); ctx.arc(d.x, d.y, WIRELESS_RANGE, 0, Math.PI * 2);
+  ctx.beginPath(); ctx.arc(d.x, d.y, rng, 0, Math.PI * 2);
   ctx.fill(); ctx.stroke();
   ctx.setLineDash([]);
+  // ручка зміни радіуса (на колі праворуч) — лише для виділеного джерела
+  if (sel) {
+    const [hx, hy] = rangeHandlePos(d);
+    const s = 5 / view.scale;
+    ctx.fillStyle = "#3ea6ff"; ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5 / view.scale;
+    ctx.beginPath(); ctx.arc(hx, hy, s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    // підпис радіуса
+    ctx.fillStyle = "#9fb0d0"; ctx.font = `${11 / view.scale}px Segoe UI`;
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(`${Math.round(rng)} px`, hx + 8 / view.scale, hy);
+  }
 }
 
 function drawDevice(d) {
@@ -984,6 +1023,11 @@ function inspDevice(d) {
     ? `<div class="field"><label>${t("insp.portsCount")}</label><input id="d-ports" type="number" min="${Math.max(1, usedPorts(d))}" max="48" value="${portCount(d)}" /></div>`
     : "";
   const wifiToggle = `<label class="chk" style="margin:2px 0 6px"><input type="checkbox" id="d-wifi" ${canWifi(d) ? "checked" : ""} /> ${t("insp.wifiToggle")}</label>`;
+  const rangeField = isWifiSource(d)
+    ? `<div class="field"><label>${t("insp.wifiRange")}</label>
+         <input id="d-range" type="number" min="${RANGE_MIN}" max="${RANGE_MAX}" step="5" value="${rangeOf(d)}" />
+         <div class="muted" style="font-size:10px;margin-top:3px">${t("insp.wifiRangeHint")}</div></div>`
+    : "";
   const conflict = conflictSet.has(d.id);
   const ipBad = d.ip && !isValidIP(d.ip);
   const warn = conflict ? `<div class="warn">${t("insp.ipConflict")}</div>`
@@ -1007,6 +1051,7 @@ function inspDevice(d) {
     <div class="field"><label>${portsLabel}</label></div>
     ${portsEditor}
     ${wifiToggle}
+    ${rangeField}
     ${dhcpBlock}
     <div class="btn-row">
       <button id="d-power" class="btn-mini">${d.on ? t("insp.powerOffBtn") : t("insp.powerOnBtn")}</button>
@@ -1038,6 +1083,16 @@ function inspDevice(d) {
   }
   const wifiInput = document.getElementById("d-wifi");
   if (wifiInput) wifiInput.addEventListener("change", (e) => { d.wifi = e.target.checked; autosave(); commit(); draw(); refreshInspector(); });
+  const rangeInput = document.getElementById("d-range");
+  if (rangeInput) {
+    rangeInput.addEventListener("input", (e) => {
+      let v = parseInt(e.target.value, 10);
+      if (isNaN(v)) return;
+      d.range = Math.max(RANGE_MIN, Math.min(RANGE_MAX, v));
+      autosave(); draw();
+    });
+    rangeInput.addEventListener("change", commit);
+  }
   document.getElementById("d-power").addEventListener("click", () => { d.on = !d.on; refreshInspector(); draw(); autosave(); commit(); });
   if (d.kind === "server") {
     document.getElementById("d-dhcp").addEventListener("change", (e) => { d.dhcp = e.target.checked; autosave(); commit(); });
