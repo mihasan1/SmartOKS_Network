@@ -10,10 +10,12 @@ window.DEVICE_TYPES = {
   hub:     { icon: "⚹",  ports: 6, wireless: false, forward: true,  color: "#7fe0c0" },
   router:  { icon: "📶", ports: 4, wireless: true,  forward: true,  color: "#ff6b9d" },
   ap:      { icon: "📡", ports: 1, wireless: true,  forward: true,  color: "#ff8fb3" },
+  camera:  { icon: "📷", ports: 1, wireless: false, forward: false, color: "#8ad8ff" },
+  nvr:     { icon: "📹", ports: 8, wireless: false, forward: true,  color: "#9b8cff" },
 };
 
 // Порядок відображення в палітрі
-window.DEVICE_ORDER = ["pc", "laptop", "server", "printer", "switch", "hub", "router", "ap"];
+window.DEVICE_ORDER = ["pc", "laptop", "server", "printer", "switch", "hub", "router", "ap", "camera", "nvr"];
 
 // Локалізована назва типу пристрою
 window.devName = (kind) => window.t(`dev.${kind}`);

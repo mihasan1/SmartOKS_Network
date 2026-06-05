@@ -85,6 +85,10 @@ const I18N = {
     "dev.hub": "Концентратор",
     "dev.router": "Wi-Fi роутер",
     "dev.ap": "Точка доступу",
+    "dev.camera": "IP-камера",
+    "dev.nvr": "Відеореєстратор",
+    "insp.portsCount": "Кількість портів",
+    "insp.wifiToggle": "Підключення по Wi-Fi",
 
     "log.added": "Додано: {name}",
     "log.removed": "Видалено: {name}",
@@ -214,6 +218,10 @@ const I18N = {
     "dev.hub": "Hub",
     "dev.router": "Wi-Fi router",
     "dev.ap": "Access point",
+    "dev.camera": "IP camera",
+    "dev.nvr": "NVR recorder",
+    "insp.portsCount": "Number of ports",
+    "insp.wifiToggle": "Wi-Fi connectivity",
 
     "log.added": "Added: {name}",
     "log.removed": "Removed: {name}",

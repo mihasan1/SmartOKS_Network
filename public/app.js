@@ -128,8 +128,8 @@ function addCable(a, b) {
     return;
   }
   // ліміт портів
-  if (!freePort(a)) { log(t("log.portFull", { name: a.name, n: T[a.kind].ports }), "err"); return; }
-  if (!freePort(b)) { log(t("log.portFull", { name: b.name, n: T[b.kind].ports }), "err"); return; }
+  if (!freePort(a)) { log(t("log.portFull", { name: a.name, n: portCount(a) }), "err"); return; }
+  if (!freePort(b)) { log(t("log.portFull", { name: b.name, n: portCount(b) }), "err"); return; }
   const fiber = a.kind === "server" || b.kind === "server" || a.kind === "router" && b.kind === "router";
   const c = { id: uid("c"), a: a.id, b: b.id, type: fiber ? "fiber" : "copper" };
   model.cables.push(c);
@@ -170,9 +170,13 @@ function wallAt(wx, wy) {
 }
 const byId = (id) => model.devices.find((d) => d.id === id);
 
+// Ефективна кількість портів та здатність Wi-Fi (з урахуванням override на пристрої)
+const portCount = (d) => (d.ports != null ? d.ports : T[d.kind].ports);
+const canWifi = (d) => (d.wifi != null ? d.wifi : T[d.kind].wireless);
+
 // Кількість зайнятих (кабельних) портів пристрою та наявність вільного
 const usedPorts = (d) => model.cables.filter((c) => c.a === d.id || c.b === d.id).length;
-const freePort = (d) => usedPorts(d) < T[d.kind].ports;
+const freePort = (d) => usedPorts(d) < portCount(d);
 
 /* ----- Мережа: валідація, конфлікти IP ----- */
 function isValidIP(s) {
@@ -567,11 +571,11 @@ function neighbors(d) {
     if (c.a === d.id) { const o = byId(c.b); if (o && o.on) out.push(o); }
     if (c.b === d.id) { const o = byId(c.a); if (o && o.on) out.push(o); }
   }
-  // беспроводные соседи: если оба беспроводные и один из них — раздаёт (forward)
-  if (T[d.kind].wireless && d.on) {
+  // бездротові сусіди: обидва Wi-Fi і хоча б один роздає (forward — роутер/AP)
+  if (canWifi(d) && d.on) {
     for (const o of model.devices) {
-      if (o === d || !o.on || !T[o.kind].wireless) continue;
-      if (!(T[d.kind].forward || T[o.kind].forward)) continue; // нужен хотя бы один раздающий (роутер/AP)
+      if (o === d || !o.on || !canWifi(o)) continue;
+      if (!(T[d.kind].forward || T[o.kind].forward)) continue;
       if (Math.hypot(o.x - d.x, o.y - d.y) <= WIRELESS_RANGE) out.push(o);
     }
   }
@@ -762,9 +766,9 @@ function draw() {
     ctx.setLineDash([]);
   }
 
-  // диапазоны Wi-Fi
+  // диапазоны Wi-Fi (тільки роздавачі — роутер/AP)
   model.devices.forEach((d) => {
-    if (T[d.kind].wireless && T[d.kind].forward && d.on) drawWifiRange(d);
+    if (canWifi(d) && T[d.kind].forward && d.on) drawWifiRange(d);
   });
 
   model.devices.forEach(drawDevice);
@@ -908,8 +912,15 @@ function drawDevice(d) {
     ctx.fillText("⚠", -15, -15);
   }
 
+  // позначка Wi-Fi для пристрою з увімкненим бездротовим підключенням
+  if (canWifi(d)) {
+    ctx.fillStyle = d.on ? "#56b6ff" : "#44506e";
+    ctx.font = "11px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("📶", -15, -15);
+  }
+
   // порти: ряд індикаторів унизу корпусу (зайнятий = зелений, вільний = сірий)
-  const total = dt.ports;
+  const total = portCount(d);
   const used = usedPorts(d);
   const show = Math.min(total, 8);
   const gap = Math.min(7, 38 / Math.max(show, 1));
@@ -968,7 +979,11 @@ function refreshInspector() {
 function inspDevice(d) {
   const dt = T[d.kind];
   const others = model.devices.filter((x) => x !== d);
-  const portsLabel = t("insp.portsUsed", { used: usedPorts(d), total: dt.ports }) + (dt.wireless ? t("insp.wifi") : "") + (dt.forward ? t("insp.forward") : "");
+  const portsLabel = t("insp.portsUsed", { used: usedPorts(d), total: portCount(d) }) + (canWifi(d) ? t("insp.wifi") : "") + (dt.forward ? t("insp.forward") : "");
+  const portsEditor = dt.ports >= 2
+    ? `<div class="field"><label>${t("insp.portsCount")}</label><input id="d-ports" type="number" min="${Math.max(1, usedPorts(d))}" max="48" value="${portCount(d)}" /></div>`
+    : "";
+  const wifiToggle = `<label class="chk" style="margin:2px 0 6px"><input type="checkbox" id="d-wifi" ${canWifi(d) ? "checked" : ""} /> ${t("insp.wifiToggle")}</label>`;
   const conflict = conflictSet.has(d.id);
   const ipBad = d.ip && !isValidIP(d.ip);
   const warn = conflict ? `<div class="warn">${t("insp.ipConflict")}</div>`
@@ -990,6 +1005,8 @@ function inspDevice(d) {
     </div>
     <div class="field"><label>${t("insp.mac")}</label><input value="${d.mac}" readonly /></div>
     <div class="field"><label>${portsLabel}</label></div>
+    ${portsEditor}
+    ${wifiToggle}
     ${dhcpBlock}
     <div class="btn-row">
       <button id="d-power" class="btn-mini">${d.on ? t("insp.powerOffBtn") : t("insp.powerOnBtn")}</button>
@@ -1008,6 +1025,19 @@ function inspDevice(d) {
   document.getElementById("d-ip").addEventListener("change", () => { commit(); refreshInspector(); });
   bind("d-mask", (e) => { d.mask = e.target.value; autosave(); });
   bind("d-gw", (e) => { d.gateway = e.target.value; autosave(); });
+  const portsInput = document.getElementById("d-ports");
+  if (portsInput) {
+    portsInput.addEventListener("input", (e) => {
+      let v = parseInt(e.target.value, 10);
+      const minv = Math.max(1, usedPorts(d));
+      if (isNaN(v)) return;
+      v = Math.max(minv, Math.min(48, v));
+      d.ports = v; autosave(); draw();
+    });
+    portsInput.addEventListener("change", () => { commit(); refreshInspector(); });
+  }
+  const wifiInput = document.getElementById("d-wifi");
+  if (wifiInput) wifiInput.addEventListener("change", (e) => { d.wifi = e.target.checked; autosave(); commit(); draw(); refreshInspector(); });
   document.getElementById("d-power").addEventListener("click", () => { d.on = !d.on; refreshInspector(); draw(); autosave(); commit(); });
   if (d.kind === "server") {
     document.getElementById("d-dhcp").addEventListener("change", (e) => { d.dhcp = e.target.checked; autosave(); commit(); });
