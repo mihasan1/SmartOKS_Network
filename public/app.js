@@ -6,7 +6,8 @@
 
 const T = window.DEVICE_TYPES;
 const cv = document.getElementById("cv");
-const ctx = cv.getContext("2d");
+let ctx = cv.getContext("2d");      // let — щоб тимчасово підміняти на offscreen для експорту
+let renderW = null, renderH = null; // override розмірів полотна під час експорту
 
 // ----- Модель документа -----
 let model = { rooms: [], walls: [], devices: [], cables: [] };
@@ -684,7 +685,7 @@ function packetPos(p) {
    Отрисовка
    ==================================================================== */
 function draw() {
-  const w = cv.clientWidth, h = cv.clientHeight;
+  const w = renderW ?? cv.clientWidth, h = renderH ?? cv.clientHeight;
   ctx.save();
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = "#0f1420";
@@ -1105,8 +1106,113 @@ async function refreshProjects() {
 document.getElementById("btn-clear").addEventListener("click", () => {
   if (!confirm(t("confirm.clear"))) return;
   model = { rooms: [], walls: [], devices: [], cables: [] };
-  nextId = 1; select(null); autosave(); commit(); draw();
+  nextId = 1; multi = []; select(null); autosave(); commit(); draw();
   log(t("log.cleared"), "dim");
+});
+
+/* ====================================================================
+   Експорт / друк / імпорт
+   ==================================================================== */
+function contentBounds() {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, any = false;
+  const ext = (x, y) => { any = true; minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); };
+  model.devices.forEach((d) => { ext(d.x - 30, d.y - 30); ext(d.x + 30, d.y + 44); });
+  model.rooms.forEach((r) => { ext(r.x, r.y); ext(r.x + r.w, r.y + r.h); });
+  model.walls.forEach((w) => { ext(w.x1, w.y1); ext(w.x2, w.y2); });
+  return any ? { minX, minY, maxX, maxY } : null;
+}
+
+function fitToContent(pad = 50) {
+  const b = contentBounds();
+  if (!b) return false;
+  const cw = cv.clientWidth, ch = cv.clientHeight;
+  const bw = (b.maxX - b.minX) + pad * 2, bh = (b.maxY - b.minY) + pad * 2;
+  view.scale = Math.max(0.25, Math.min(3, Math.min(cw / bw, ch / bh)));
+  view.x = (cw - (b.maxX + b.minX) * view.scale) / 2;
+  view.y = (ch - (b.maxY + b.minY) * view.scale) / 2;
+  return true;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function buildPNG(scale = 2) {
+  const b = contentBounds();
+  if (!b) { log(t("log.empty"), "err"); return null; }
+  const pad = 40;
+  const W = Math.ceil((b.maxX - b.minX) + pad * 2);
+  const H = Math.ceil((b.maxY - b.minY) + pad * 2);
+  const off = document.createElement("canvas");
+  off.width = W * scale; off.height = H * scale;
+  const offCtx = off.getContext("2d");
+
+  // підміняємо ціль рендеру на offscreen
+  const savedCtx = ctx, savedView = { ...view }, savedSel = selected, savedMulti = multi;
+  const savedRW = renderW, savedRH = renderH;
+  ctx = offCtx; renderW = W; renderH = H;
+  selected = null; multi = [];
+  offCtx.setTransform(scale, 0, 0, scale, 0, 0);
+  view.scale = 1; view.x = -b.minX + pad; view.y = -b.minY + pad;
+  draw();
+  const url = off.toDataURL("image/png");
+
+  // відновлюємо
+  ctx = savedCtx; Object.assign(view, savedView);
+  selected = savedSel; multi = savedMulti; renderW = savedRW; renderH = savedRH;
+  draw();
+  return url;
+}
+
+function projName() {
+  return (document.getElementById("proj-name").value.trim() || "netplanner").replace(/[^\w\-а-яА-ЯіїєґІЇЄҐ ]/g, "");
+}
+
+document.getElementById("btn-png").addEventListener("click", () => {
+  const url = buildPNG();
+  if (!url) return;
+  fetch(url).then((r) => r.blob()).then((b) => {
+    downloadBlob(b, `${projName()}.png`);
+    log(t("log.exportedPng"), "ok");
+  });
+});
+
+document.getElementById("btn-print").addEventListener("click", () => {
+  const url = buildPNG();
+  if (!url) return;
+  const win = window.open("", "_blank");
+  if (!win) return;
+  win.document.write(`<html><head><title>${projName()}</title></head>
+    <body style="margin:0;display:flex;align-items:center;justify-content:center">
+    <img src="${url}" style="max-width:100%" onload="window.focus();window.print();" /></body></html>`);
+  win.document.close();
+});
+
+document.getElementById("btn-export").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(serialize(), null, 2)], { type: "application/json" });
+  downloadBlob(blob, `${projName()}.json`);
+  log(t("log.exportedJson"), "ok");
+});
+
+document.getElementById("btn-import").addEventListener("click", () => document.getElementById("file-import").click());
+document.getElementById("file-import").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data.model) throw new Error("no model");
+      loadData(data);
+      log(t("log.imported"), "ok");
+    } catch { log(t("log.importErr"), "err"); }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
 });
 
 /* ====================================================================
