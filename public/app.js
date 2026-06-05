@@ -107,7 +107,7 @@ function addDevice(kind, x, y) {
   model.devices.push(d);
   select("device", d);
   log(t("log.added", { name: d.name }), "dim");
-  autosave();
+  autosave(); commit();
   return d;
 }
 
@@ -121,7 +121,7 @@ function addCable(a, b) {
   const c = { id: uid("c"), a: a.id, b: b.id, type: fiber ? "fiber" : "copper" };
   model.cables.push(c);
   log(t("log.cable", { a: a.name, b: b.name }), "ok");
-  autosave();
+  autosave(); commit();
 }
 
 /* ====================================================================
@@ -182,6 +182,11 @@ function setTool(tl) {
 
 document.addEventListener("keydown", (e) => {
   if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  const ctrl = e.ctrlKey || e.metaKey;
+  // Undo / Redo
+  if (ctrl && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
+  if (ctrl && (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) { e.preventDefault(); redo(); return; }
+  if (ctrl) return; // не перехоплюємо інші Ctrl-комбінації як інструменти
   const map = { v: "select", r: "room", w: "wall", c: "cable", e: "erase" };
   if (map[e.key.toLowerCase()]) setTool(map[e.key.toLowerCase()]);
   if (e.key === " ") { spaceDown = true; e.preventDefault(); }
@@ -264,7 +269,7 @@ cv.addEventListener("mousemove", (e) => {
 
 window.addEventListener("mouseup", () => {
   if (panning) { panning = false; cv.style.cursor = tool === "select" ? "default" : "crosshair"; }
-  if (drag) { autosave(); drag = null; }
+  if (drag) { autosave(); commit(); drag = null; }
   if (draftRoom) {
     if (Math.abs(draftRoom.w) > 10 && Math.abs(draftRoom.h) > 10) {
       const r = {
@@ -277,14 +282,14 @@ window.addEventListener("mouseup", () => {
       };
       model.rooms.push(r);
       select("room", r);
-      autosave();
+      autosave(); commit();
     }
     draftRoom = null; draw();
   }
   if (draftWall) {
     if (Math.hypot(draftWall.x2 - draftWall.x1, draftWall.y2 - draftWall.y1) > 10) {
       model.walls.push({ id: uid("w"), ...draftWall });
-      autosave();
+      autosave(); commit();
     }
     draftWall = null; draw();
   }
@@ -307,7 +312,7 @@ cv.addEventListener("dblclick", (e) => {
   const p = screenPos(e);
   const w = toWorld(p.x, p.y);
   const d = deviceAt(w.x, w.y);
-  if (d) { d.on = !d.on; log(t("log.power", { name: d.name, state: t(d.on ? "power.on" : "power.off") }), d.on ? "ok" : "err"); draw(); }
+  if (d) { d.on = !d.on; log(t("log.power", { name: d.name, state: t(d.on ? "power.on" : "power.off") }), d.on ? "ok" : "err"); draw(); autosave(); commit(); }
 });
 
 /* ====================================================================
@@ -317,18 +322,18 @@ function eraseAt(wx, wy) {
   const d = deviceAt(wx, wy);
   if (d) return removeDevice(d);
   const c = cableAt(wx, wy);
-  if (c) { model.cables = model.cables.filter((x) => x !== c); log(t("log.cableDeleted"), "dim"); autosave(); return; }
+  if (c) { model.cables = model.cables.filter((x) => x !== c); log(t("log.cableDeleted"), "dim"); autosave(); commit(); return; }
   const wl = wallAt(wx, wy);
-  if (wl) { model.walls = model.walls.filter((x) => x !== wl); autosave(); return; }
+  if (wl) { model.walls = model.walls.filter((x) => x !== wl); autosave(); commit(); return; }
   const r = roomAt(wx, wy);
-  if (r) { model.rooms = model.rooms.filter((x) => x !== r); autosave(); return; }
+  if (r) { model.rooms = model.rooms.filter((x) => x !== r); autosave(); commit(); return; }
 }
 function removeDevice(d) {
   model.devices = model.devices.filter((x) => x !== d);
   model.cables = model.cables.filter((c) => c.a !== d.id && c.b !== d.id);
   if (selected && selected.ref === d) select(null);
   log(t("log.removed", { name: d.name }), "dim");
-  autosave();
+  autosave(); commit();
 }
 function deleteSelected() {
   if (!selected) return;
@@ -338,7 +343,7 @@ function deleteSelected() {
   else if (type === "room") model.rooms = model.rooms.filter((x) => x !== ref);
   else if (type === "wall") model.walls = model.walls.filter((x) => x !== ref);
   select(null);
-  autosave(); draw();
+  autosave(); commit(); draw();
 }
 
 /* ====================================================================
@@ -403,7 +408,7 @@ function autoIP() {
     subnet++;
   }
   log(t("log.autoip", { seg: comps.length, nodes: assigned }), "info");
-  autosave(); draw();
+  autosave(); commit(); draw();
   refreshInspector();
 }
 
@@ -688,8 +693,10 @@ function inspDevice(d) {
       </div>
     </div>`;
   document.getElementById("d-name").addEventListener("input", (e) => { d.name = e.target.value; autosave(); draw(); });
+  document.getElementById("d-name").addEventListener("change", commit);
   document.getElementById("d-ip").addEventListener("input", (e) => { d.ip = e.target.value; autosave(); draw(); });
-  document.getElementById("d-power").addEventListener("click", () => { d.on = !d.on; refreshInspector(); draw(); autosave(); });
+  document.getElementById("d-ip").addEventListener("change", commit);
+  document.getElementById("d-power").addEventListener("click", () => { d.on = !d.on; refreshInspector(); draw(); autosave(); commit(); });
   document.getElementById("d-ping").addEventListener("click", () => {
     const tg = byId(document.getElementById("d-target").value);
     if (tg) ping(d, tg);
@@ -707,8 +714,11 @@ function inspRoom(r) {
     </div>
     <div class="btn-row"><button id="d-del" class="btn-mini">${t("insp.delete")}</button></div>`;
   document.getElementById("r-name").addEventListener("input", (e) => { r.name = e.target.value; autosave(); draw(); });
+  document.getElementById("r-name").addEventListener("change", commit);
   document.getElementById("r-w").addEventListener("input", (e) => { r.w = +e.target.value || r.w; autosave(); draw(); });
+  document.getElementById("r-w").addEventListener("change", commit);
   document.getElementById("r-h").addEventListener("input", (e) => { r.h = +e.target.value || r.h; autosave(); draw(); });
+  document.getElementById("r-h").addEventListener("change", commit);
   bindDel();
 }
 
@@ -722,7 +732,7 @@ function inspCable(c) {
         <option value="fiber" ${c.type === "fiber" ? "selected" : ""}>${t("cable.fiber")}</option>
       </select></div>
     <div class="btn-row"><button id="d-del" class="btn-mini">${t("insp.delete")}</button></div>`;
-  document.getElementById("c-type").addEventListener("change", (e) => { c.type = e.target.value; autosave(); draw(); });
+  document.getElementById("c-type").addEventListener("change", (e) => { c.type = e.target.value; autosave(); commit(); draw(); });
   bindDel();
 }
 
@@ -770,10 +780,73 @@ function serialize() { return { model, nextId, view }; }
 function loadData(data) {
   model = data.model || { rooms: [], walls: [], devices: [], cables: [] };
   nextId = data.nextId || 1;
-  // дефолты для совместимости
+  // дефолти для сумісності
   model.rooms ||= []; model.walls ||= []; model.devices ||= []; model.cables ||= [];
   select(null); draw();
+  resetHistory();
 }
+
+/* ====================================================================
+   Історія: undo / redo (Ctrl+Z / Ctrl+Y)
+   Зберігаємо знімки стану (model + nextId) у стек.
+   commit() викликається після кожної дискретної зміни.
+   ==================================================================== */
+const HIST_MAX = 100;
+let undoStack = [], redoStack = [], lastState = null;
+
+function snapState() { return JSON.stringify({ model, nextId }); }
+
+function commit() {
+  const s = snapState();
+  if (s === lastState) return;            // нічого не змінилось
+  if (lastState !== null) {
+    undoStack.push(lastState);
+    if (undoStack.length > HIST_MAX) undoStack.shift();
+    redoStack = [];
+  }
+  lastState = s;
+  updateHistButtons();
+}
+
+function resetHistory() {
+  undoStack = []; redoStack = [];
+  lastState = snapState();
+  updateHistButtons();
+}
+
+function restoreState(s) {
+  const d = JSON.parse(s);
+  model = d.model; nextId = d.nextId;
+  model.rooms ||= []; model.walls ||= []; model.devices ||= []; model.cables ||= [];
+  selected = null; refreshInspector(); draw();
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(lastState);
+  lastState = undoStack.pop();
+  restoreState(lastState);
+  autosave(); updateHistButtons();
+  log(t("log.undo"), "dim");
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(lastState);
+  lastState = redoStack.pop();
+  restoreState(lastState);
+  autosave(); updateHistButtons();
+  log(t("log.redo"), "dim");
+}
+
+function updateHistButtons() {
+  const u = document.getElementById("btn-undo"), r = document.getElementById("btn-redo");
+  if (u) u.disabled = undoStack.length === 0;
+  if (r) r.disabled = redoStack.length === 0;
+}
+
+document.getElementById("btn-undo").addEventListener("click", undo);
+document.getElementById("btn-redo").addEventListener("click", redo);
 
 document.getElementById("btn-save").addEventListener("click", async () => {
   const name = document.getElementById("proj-name").value.trim() || "untitled";
@@ -812,7 +885,7 @@ async function refreshProjects() {
 document.getElementById("btn-clear").addEventListener("click", () => {
   if (!confirm(t("confirm.clear"))) return;
   model = { rooms: [], walls: [], devices: [], cables: [] };
-  nextId = 1; select(null); autosave(); draw();
+  nextId = 1; select(null); autosave(); commit(); draw();
   log(t("log.cleared"), "dim");
 });
 
@@ -844,6 +917,7 @@ function boot() {
   if (saved) { try { loadData(JSON.parse(saved)); } catch {} }
   refreshProjects();
   draw();
+  resetHistory();          // базовий стан для undo/redo
   log(t("log.bootReady"), "info");
   log(t("log.bootHint"), "dim");
 }
