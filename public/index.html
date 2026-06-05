@@ -1,58 +1,64 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="uk">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>NetPlanner — проектирование локальных сетей</title>
+  <title>NetPlanner</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header id="topbar">
     <div class="brand">🖧 NetPlanner</div>
     <div class="tools">
-      <button data-tool="select" class="tool active" title="Выделение / перемещение (V)">✋ Выбор</button>
-      <button data-tool="room" class="tool" title="Нарисовать комнату (R)">▭ Комната</button>
-      <button data-tool="wall" class="tool" title="Стена / перегородка (W)">／ Стена</button>
-      <button data-tool="cable" class="tool" title="Проложить провод (C)">🔌 Провод</button>
-      <button data-tool="erase" class="tool" title="Удалить (Del)">🗑 Удалить</button>
+      <button data-tool="select" class="tool active" data-i18n="tool.select" data-i18n-title="tool.select.title">Вибір</button>
+      <button data-tool="room" class="tool" data-i18n="tool.room" data-i18n-title="tool.room.title">Кімната</button>
+      <button data-tool="wall" class="tool" data-i18n="tool.wall" data-i18n-title="tool.wall.title">Стіна</button>
+      <button data-tool="cable" class="tool" data-i18n="tool.cable" data-i18n-title="tool.cable.title">Провід</button>
+      <button data-tool="erase" class="tool" data-i18n="tool.erase" data-i18n-title="tool.erase.title">Видалити</button>
     </div>
     <div class="spacer"></div>
     <div class="actions">
-      <button id="btn-sim" title="Запустить/остановить симуляцию">▶ Симуляция</button>
-      <button id="btn-autoip" title="Раздать IP-адреса по сети">🌐 Авто-IP</button>
-      <button id="btn-clear" title="Очистить всё">✖ Очистить</button>
+      <button id="btn-sim" data-i18n="act.sim" data-i18n-title="act.sim.title">Симуляція</button>
+      <button id="btn-autoip" data-i18n="act.autoip" data-i18n-title="act.autoip.title">Авто-IP</button>
+      <button id="btn-clear" data-i18n="act.clear" data-i18n-title="act.clear.title">Очистити</button>
       <span class="sep"></span>
-      <input id="proj-name" placeholder="имя проекта" value="моя-сеть" />
-      <button id="btn-save">💾 Сохранить</button>
-      <select id="proj-list"><option value="">— открыть —</option></select>
+      <input id="proj-name" data-i18n-ph="proj.placeholder" value="моя-мережа" />
+      <button id="btn-save" data-i18n="act.save">Зберегти</button>
+      <select id="proj-list"><option value="" data-i18n="proj.open">— відкрити —</option></select>
+      <span class="sep"></span>
+      <select id="lang-sel" title="Мова / Language">
+        <option value="uk">Українська</option>
+        <option value="en">English</option>
+      </select>
     </div>
   </header>
 
   <div id="main">
     <aside id="palette">
-      <h3>Устройства</h3>
+      <h3 data-i18n="pal.devices">Пристрої</h3>
       <div class="dev-grid" id="dev-grid"></div>
-      <h3>Слои</h3>
-      <label class="chk"><input type="checkbox" id="show-rooms" checked /> Помещения</label>
-      <label class="chk"><input type="checkbox" id="show-grid" checked /> Сетка</label>
-      <label class="chk"><input type="checkbox" id="show-labels" checked /> Подписи / IP</label>
-      <h3>Статус</h3>
+      <h3 data-i18n="pal.layers">Шари</h3>
+      <label class="chk"><input type="checkbox" id="show-rooms" checked /> <span data-i18n="pal.rooms">Приміщення</span></label>
+      <label class="chk"><input type="checkbox" id="show-grid" checked /> <span data-i18n="pal.grid">Сітка</span></label>
+      <label class="chk"><input type="checkbox" id="show-labels" checked /> <span data-i18n="pal.labels">Підписи / IP</span></label>
+      <h3 data-i18n="pal.status">Статус</h3>
       <div id="status">Готово</div>
     </aside>
 
     <div id="canvas-wrap">
       <canvas id="cv"></canvas>
-      <div id="hint">Колесо — масштаб · Пробел+тащить или средняя кнопка — панорама</div>
+      <div id="hint" data-i18n="hint">Колесо — масштаб · Пробіл+тягнути або середня кнопка — панорама</div>
     </div>
 
     <aside id="inspector">
-      <h3>Свойства</h3>
-      <div id="insp-body"><p class="muted">Ничего не выбрано</p></div>
-      <h3>Консоль</h3>
+      <h3 data-i18n="insp.props">Властивості</h3>
+      <div id="insp-body"><p class="muted" data-i18n="insp.nothing">Нічого не вибрано</p></div>
+      <h3 data-i18n="insp.console">Консоль</h3>
       <div id="console"></div>
     </aside>
   </div>
 
+  <script src="i18n.js"></script>
   <script src="devices.js"></script>
   <script src="app.js"></script>
 </body>

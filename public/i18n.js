@@ -1,0 +1,247 @@
+"use strict";
+/* ====================================================================
+   i18n — українська (uk) та англійська (en)
+   Використання:
+     t("ключ", { змінна: значення })  -> рядок поточної мови
+     data-i18n="ключ"        -> textContent елемента
+     data-i18n-title="ключ"  -> атрибут title
+     data-i18n-ph="ключ"     -> атрибут placeholder
+   ==================================================================== */
+
+const I18N = {
+  uk: {
+    "app.title": "NetPlanner — проєктування локальних мереж",
+
+    "tool.select": "Вибір",
+    "tool.room": "Кімната",
+    "tool.wall": "Стіна",
+    "tool.cable": "Провід",
+    "tool.erase": "Видалити",
+    "tool.select.title": "Виділення / переміщення (V)",
+    "tool.room.title": "Намалювати кімнату (R)",
+    "tool.wall.title": "Стіна / перегородка (W)",
+    "tool.cable.title": "Прокласти провід (C)",
+    "tool.erase.title": "Видалити (Del)",
+
+    "act.sim": "Симуляція",
+    "act.sim.title": "Запустити / зупинити симуляцію",
+    "act.autoip": "Авто-IP",
+    "act.autoip.title": "Роздати IP-адреси мережі",
+    "act.clear": "Очистити",
+    "act.clear.title": "Очистити все",
+    "act.save": "Зберегти",
+    "proj.placeholder": "назва проєкту",
+    "proj.open": "— відкрити —",
+
+    "pal.devices": "Пристрої",
+    "pal.layers": "Шари",
+    "pal.rooms": "Приміщення",
+    "pal.grid": "Сітка",
+    "pal.labels": "Підписи / IP",
+    "pal.status": "Статус",
+    "lang.label": "Мова",
+
+    "insp.props": "Властивості",
+    "insp.nothing": "Нічого не вибрано",
+    "insp.console": "Консоль",
+    "hint": "Колесо — масштаб · Пробіл+тягнути або середня кнопка — панорама",
+
+    "status.ready": "Готово",
+    "status.tool": "Інструмент: {name}",
+    "status.simOn": "Симуляція активна — зв'язки підсвічено",
+    "status.simOff": "Симуляцію вимкнено",
+
+    "dev.pc": "ПК",
+    "dev.laptop": "Ноутбук",
+    "dev.server": "Сервер",
+    "dev.printer": "Принтер",
+    "dev.switch": "Комутатор",
+    "dev.hub": "Концентратор",
+    "dev.router": "Wi-Fi роутер",
+    "dev.ap": "Точка доступу",
+
+    "log.added": "Додано: {name}",
+    "log.removed": "Видалено: {name}",
+    "log.cableDeleted": "Провід видалено",
+    "log.cable": "Провід: {a} ⇄ {b}",
+    "log.alreadyConnected": "Ці пристрої вже з'єднані",
+    "log.cableFrom": "Тягну провід від {name}…",
+    "log.power": "{name}: живлення {state}",
+    "power.on": "УВІМК",
+    "power.off": "ВИМК",
+    "log.autoip": "Авто-IP: налаштовано сегментів {seg}, вузлів {nodes}",
+    "log.cleared": "Полотно очищено",
+    "log.saved": "💾 Проєкт збережено: «{name}»",
+    "log.saveErr": "Помилка збереження",
+    "log.opened": "Відкрито проєкт: «{name}»",
+    "log.bootReady": "NetPlanner готовий. Перетягніть пристрій із палітри на полотно.",
+    "log.bootHint": "Підказка: подвійний клік по пристрою — увімк/вимк живлення.",
+
+    "ping.off": "Один із пристроїв вимкнено",
+    "ping.noRoute": "✗ {a} → {b}: вузол недоступний (немає маршруту)",
+    "ping.start": "PING {name} ({ip}) від {src}:",
+    "ping.reply": "  відповідь від {ip}: час={ms} мс TTL=64",
+    "ping.done": "✓ {a} → {b}: 4 надіслано, 4 отримано, втрат 0%",
+    "val.unknown": "?",
+
+    "confirm.clear": "Очистити все полотно?",
+    "room.default": "Приміщення {n}",
+
+    "insp.type": "Тип",
+    "insp.powerOnBadge": "● живлення УВІМК",
+    "insp.powerOffBadge": "○ ВИМК",
+    "insp.name": "Ім'я",
+    "insp.ip": "IP-адреса",
+    "insp.ipPlaceholder": "напр. 192.168.0.10",
+    "insp.mac": "MAC",
+    "insp.ports": "Портів: {n}",
+    "insp.wifi": " · Wi-Fi",
+    "insp.forward": " · пересилання",
+    "insp.powerOffBtn": "⏻ Вимкнути",
+    "insp.powerOnBtn": "⏻ Увімкнути",
+    "insp.delete": "🗑 Видалити",
+    "insp.pingTo": "PING до пристрою",
+    "insp.wall": "Стіна / перегородка",
+    "insp.roomName": "Назва приміщення",
+    "insp.size": "Розмір (сітка)",
+    "insp.width": "Ширина",
+    "insp.height": "Висота",
+    "insp.connection": "З'єднання",
+    "insp.cableType": "Тип кабелю",
+    "cable.copper": "Вита пара (мідь)",
+    "cable.fiber": "Оптоволокно",
+  },
+
+  en: {
+    "app.title": "NetPlanner — local network design",
+
+    "tool.select": "Select",
+    "tool.room": "Room",
+    "tool.wall": "Wall",
+    "tool.cable": "Cable",
+    "tool.erase": "Erase",
+    "tool.select.title": "Select / move (V)",
+    "tool.room.title": "Draw a room (R)",
+    "tool.wall.title": "Wall / partition (W)",
+    "tool.cable.title": "Run a cable (C)",
+    "tool.erase.title": "Delete (Del)",
+
+    "act.sim": "Simulation",
+    "act.sim.title": "Start / stop simulation",
+    "act.autoip": "Auto-IP",
+    "act.autoip.title": "Assign IP addresses",
+    "act.clear": "Clear",
+    "act.clear.title": "Clear everything",
+    "act.save": "Save",
+    "proj.placeholder": "project name",
+    "proj.open": "— open —",
+
+    "pal.devices": "Devices",
+    "pal.layers": "Layers",
+    "pal.rooms": "Rooms",
+    "pal.grid": "Grid",
+    "pal.labels": "Labels / IP",
+    "pal.status": "Status",
+    "lang.label": "Language",
+
+    "insp.props": "Properties",
+    "insp.nothing": "Nothing selected",
+    "insp.console": "Console",
+    "hint": "Wheel — zoom · Space+drag or middle button — pan",
+
+    "status.ready": "Ready",
+    "status.tool": "Tool: {name}",
+    "status.simOn": "Simulation active — links highlighted",
+    "status.simOff": "Simulation off",
+
+    "dev.pc": "PC",
+    "dev.laptop": "Laptop",
+    "dev.server": "Server",
+    "dev.printer": "Printer",
+    "dev.switch": "Switch",
+    "dev.hub": "Hub",
+    "dev.router": "Wi-Fi router",
+    "dev.ap": "Access point",
+
+    "log.added": "Added: {name}",
+    "log.removed": "Removed: {name}",
+    "log.cableDeleted": "Cable deleted",
+    "log.cable": "Cable: {a} ⇄ {b}",
+    "log.alreadyConnected": "These devices are already connected",
+    "log.cableFrom": "Dragging cable from {name}…",
+    "log.power": "{name}: power {state}",
+    "power.on": "ON",
+    "power.off": "OFF",
+    "log.autoip": "Auto-IP: configured {seg} segments, {nodes} nodes",
+    "log.cleared": "Canvas cleared",
+    "log.saved": "💾 Project saved: “{name}”",
+    "log.saveErr": "Save error",
+    "log.opened": "Opened project: “{name}”",
+    "log.bootReady": "NetPlanner ready. Drag a device from the palette onto the canvas.",
+    "log.bootHint": "Tip: double-click a device to toggle power.",
+
+    "ping.off": "One of the devices is off",
+    "ping.noRoute": "✗ {a} → {b}: host unreachable (no route)",
+    "ping.start": "PING {name} ({ip}) from {src}:",
+    "ping.reply": "  reply from {ip}: time={ms} ms TTL=64",
+    "ping.done": "✓ {a} → {b}: 4 sent, 4 received, 0% loss",
+    "val.unknown": "?",
+
+    "confirm.clear": "Clear the entire canvas?",
+    "room.default": "Room {n}",
+
+    "insp.type": "Type",
+    "insp.powerOnBadge": "● power ON",
+    "insp.powerOffBadge": "○ OFF",
+    "insp.name": "Name",
+    "insp.ip": "IP address",
+    "insp.ipPlaceholder": "e.g. 192.168.0.10",
+    "insp.mac": "MAC",
+    "insp.ports": "Ports: {n}",
+    "insp.wifi": " · Wi-Fi",
+    "insp.forward": " · forwarding",
+    "insp.powerOffBtn": "⏻ Power off",
+    "insp.powerOnBtn": "⏻ Power on",
+    "insp.delete": "🗑 Delete",
+    "insp.pingTo": "PING to device",
+    "insp.wall": "Wall / partition",
+    "insp.roomName": "Room name",
+    "insp.size": "Size (grid)",
+    "insp.width": "Width",
+    "insp.height": "Height",
+    "insp.connection": "Connection",
+    "insp.cableType": "Cable type",
+    "cable.copper": "Twisted pair (copper)",
+    "cable.fiber": "Fiber optic",
+  },
+};
+
+let LANG = localStorage.getItem("netplanner:lang") || "uk";
+
+function t(key, vars) {
+  let s = (I18N[LANG] && I18N[LANG][key]) ?? I18N.en[key] ?? key;
+  if (vars) for (const k in vars) s = s.replace(new RegExp(`\\{${k}\\}`, "g"), vars[k]);
+  return s;
+}
+
+function applyI18n() {
+  document.documentElement.lang = LANG;
+  document.title = t("app.title");
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle); });
+  document.querySelectorAll("[data-i18n-ph]").forEach((el) => { el.placeholder = t(el.dataset.i18nPh); });
+  // даємо застосунку перемалювати динамічні частини (палітра, інспектор, статус)
+  if (typeof window.onLangChange === "function") window.onLangChange();
+}
+
+function setLang(l) {
+  if (!I18N[l]) return;
+  LANG = l;
+  localStorage.setItem("netplanner:lang", l);
+  applyI18n();
+}
+
+window.t = t;
+window.setLang = setLang;
+window.getLang = () => LANG;
+window.applyI18n = applyI18n;

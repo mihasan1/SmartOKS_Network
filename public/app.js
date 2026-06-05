@@ -60,19 +60,23 @@ function screenPos(e) {
    Палитра устройств
    ==================================================================== */
 const devGrid = document.getElementById("dev-grid");
-window.DEVICE_ORDER.forEach((kind) => {
-  const t = T[kind];
-  const b = document.createElement("div");
-  b.className = "dev-btn";
-  b.draggable = true;
-  b.innerHTML = `<span class="ico">${t.icon}</span><span class="nm">${t.name}</span>`;
-  b.addEventListener("dragstart", (e) => {
-    e.dataTransfer.setData("kind", kind);
-    b.classList.add("dragging");
+function buildPalette() {
+  devGrid.innerHTML = "";
+  window.DEVICE_ORDER.forEach((kind) => {
+    const dt = T[kind];
+    const b = document.createElement("div");
+    b.className = "dev-btn";
+    b.draggable = true;
+    b.innerHTML = `<span class="ico">${dt.icon}</span><span class="nm">${devName(kind)}</span>`;
+    b.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("kind", kind);
+      b.classList.add("dragging");
+    });
+    b.addEventListener("dragend", () => b.classList.remove("dragging"));
+    devGrid.appendChild(b);
   });
-  b.addEventListener("dragend", () => b.classList.remove("dragging"));
-  devGrid.appendChild(b);
-});
+}
+buildPalette();
 
 cv.addEventListener("dragover", (e) => e.preventDefault());
 cv.addEventListener("drop", (e) => {
@@ -94,16 +98,15 @@ function randMac() {
 }
 
 function addDevice(kind, x, y) {
-  const t = T[kind];
   const count = model.devices.filter((d) => d.kind === kind).length + 1;
   const d = {
     id: uid("d"), kind, x, y,
-    name: `${t.name}-${count}`,
+    name: `${devName(kind)}-${count}`,
     ip: "", mac: randMac(), on: true,
   };
   model.devices.push(d);
   select("device", d);
-  log(`Добавлено: ${d.name}`, "dim");
+  log(t("log.added", { name: d.name }), "dim");
   autosave();
   return d;
 }
@@ -111,13 +114,13 @@ function addDevice(kind, x, y) {
 function addCable(a, b) {
   if (a.id === b.id) return;
   if (model.cables.some((c) => (c.a === a.id && c.b === b.id) || (c.a === b.id && c.b === a.id))) {
-    log("Эти устройства уже соединены", "err");
+    log(t("log.alreadyConnected"), "err");
     return;
   }
   const fiber = a.kind === "server" || b.kind === "server" || a.kind === "router" && b.kind === "router";
   const c = { id: uid("c"), a: a.id, b: b.id, type: fiber ? "fiber" : "copper" };
   model.cables.push(c);
-  log(`Провод: ${a.name} ⇄ ${b.name}`, "ok");
+  log(t("log.cable", { a: a.name, b: b.name }), "ok");
   autosave();
 }
 
@@ -169,12 +172,12 @@ function distToSeg(px, py, x1, y1, x2, y2) {
 document.querySelectorAll(".tool").forEach((b) => {
   b.addEventListener("click", () => setTool(b.dataset.tool));
 });
-function setTool(t) {
-  tool = t;
+function setTool(tl) {
+  tool = tl;
   cableFrom = null;
-  document.querySelectorAll(".tool").forEach((b) => b.classList.toggle("active", b.dataset.tool === t));
-  cv.style.cursor = t === "select" ? "default" : "crosshair";
-  setStatus(`Инструмент: ${({ select: "Выбор", room: "Комната", wall: "Стена", cable: "Провод", erase: "Удаление" })[t]}`);
+  document.querySelectorAll(".tool").forEach((b) => b.classList.toggle("active", b.dataset.tool === tl));
+  cv.style.cursor = tl === "select" ? "default" : "crosshair";
+  setStatus(t("status.tool", { name: t("tool." + tl) }));
 }
 
 document.addEventListener("keydown", (e) => {
@@ -221,7 +224,7 @@ cv.addEventListener("mousedown", (e) => {
   } else if (tool === "cable") {
     const d = deviceAt(w.x, w.y);
     if (d) {
-      if (!cableFrom) { cableFrom = d; log(`Тяну провод от ${d.name}…`, "dim"); }
+      if (!cableFrom) { cableFrom = d; log(t("log.cableFrom", { name: d.name }), "dim"); }
       else { addCable(cableFrom, d); cableFrom = null; }
     }
   } else if (tool === "erase") {
@@ -269,7 +272,7 @@ window.addEventListener("mouseup", () => {
         x: Math.min(draftRoom.x, draftRoom.x + draftRoom.w),
         y: Math.min(draftRoom.y, draftRoom.y + draftRoom.h),
         w: Math.abs(draftRoom.w), h: Math.abs(draftRoom.h),
-        name: `Помещение ${model.rooms.length + 1}`,
+        name: t("room.default", { n: model.rooms.length + 1 }),
         color: "#2a3550",
       };
       model.rooms.push(r);
@@ -304,7 +307,7 @@ cv.addEventListener("dblclick", (e) => {
   const p = screenPos(e);
   const w = toWorld(p.x, p.y);
   const d = deviceAt(w.x, w.y);
-  if (d) { d.on = !d.on; log(`${d.name}: питание ${d.on ? "ВКЛ" : "ВЫКЛ"}`, d.on ? "ok" : "err"); draw(); }
+  if (d) { d.on = !d.on; log(t("log.power", { name: d.name, state: t(d.on ? "power.on" : "power.off") }), d.on ? "ok" : "err"); draw(); }
 });
 
 /* ====================================================================
@@ -314,7 +317,7 @@ function eraseAt(wx, wy) {
   const d = deviceAt(wx, wy);
   if (d) return removeDevice(d);
   const c = cableAt(wx, wy);
-  if (c) { model.cables = model.cables.filter((x) => x !== c); log("Провод удалён", "dim"); autosave(); return; }
+  if (c) { model.cables = model.cables.filter((x) => x !== c); log(t("log.cableDeleted"), "dim"); autosave(); return; }
   const wl = wallAt(wx, wy);
   if (wl) { model.walls = model.walls.filter((x) => x !== wl); autosave(); return; }
   const r = roomAt(wx, wy);
@@ -324,7 +327,7 @@ function removeDevice(d) {
   model.devices = model.devices.filter((x) => x !== d);
   model.cables = model.cables.filter((c) => c.a !== d.id && c.b !== d.id);
   if (selected && selected.ref === d) select(null);
-  log(`Удалено: ${d.name}`, "dim");
+  log(t("log.removed", { name: d.name }), "dim");
   autosave();
 }
 function deleteSelected() {
@@ -399,7 +402,7 @@ function autoIP() {
     }
     subnet++;
   }
-  log(`Авто-IP: настроено сегментов ${comps.length}, узлов ${assigned}`, "info");
+  log(t("log.autoip", { seg: comps.length, nodes: assigned }), "info");
   autosave(); draw();
   refreshInspector();
 }
@@ -428,10 +431,10 @@ function findPath(src, dst) {
 }
 
 function ping(src, dst) {
-  if (!src.on || !dst.on) { log("Одно из устройств выключено", "err"); return; }
+  if (!src.on || !dst.on) { log(t("ping.off"), "err"); return; }
   const path = findPath(src, dst);
-  if (!path) { log(`✗ ${src.name} → ${dst.name}: узел недоступен (нет маршрута)`, "err"); return; }
-  log(`PING ${dst.name} (${dst.ip || "?"}) от ${src.name}:`, "info");
+  if (!path) { log(t("ping.noRoute", { a: src.name, b: dst.name }), "err"); return; }
+  log(t("ping.start", { name: dst.name, ip: dst.ip || t("val.unknown"), src: src.name }), "info");
   const pts = path.map((d) => ({ x: d.x, y: d.y }));
   let seq = 0;
   const fire = () => {
@@ -440,10 +443,10 @@ function ping(src, dst) {
       path: pts, t: 0, color: "#38d39f",
       onDone: () => {
         const ms = (Math.random() * 8 + 1).toFixed(1);
-        log(`  ответ от ${dst.ip || dst.name}: время=${ms} мс TTL=64`, "ok");
+        log(t("ping.reply", { ip: dst.ip || dst.name, ms }), "ok");
         seq++;
         if (seq < 4) setTimeout(fire, 250);
-        else log(`✓ ${src.name} → ${dst.name}: 4 отправлено, 4 получено, потерь 0%`, "ok");
+        else log(t("ping.done", { a: src.name, b: dst.name }), "ok");
       },
     });
     if (!animRunning) animate();
@@ -457,7 +460,7 @@ function ping(src, dst) {
 document.getElementById("btn-sim").addEventListener("click", function () {
   simOn = !simOn;
   this.classList.toggle("on", simOn);
-  setStatus(simOn ? "Симуляция активна — связи подсвечены" : "Симуляция выключена");
+  setStatus(simOn ? t("status.simOn") : t("status.simOff"));
   draw();
 });
 document.getElementById("btn-autoip").addEventListener("click", autoIP);
@@ -598,21 +601,21 @@ function drawWifiRange(d) {
 }
 
 function drawDevice(d) {
-  const t = T[d.kind];
+  const dt = T[d.kind];
   const sel = isSel(d);
   // корпус
   ctx.save();
   ctx.translate(d.x, d.y);
   ctx.fillStyle = d.on ? "#1f283c" : "#161b27";
-  ctx.strokeStyle = sel ? "#3ea6ff" : (d.on ? t.color : "#44506e");
+  ctx.strokeStyle = sel ? "#3ea6ff" : (d.on ? dt.color : "#44506e");
   ctx.lineWidth = sel ? 3 : 2;
   roundRect(-22, -22, 44, 44, 9);
   ctx.fill(); ctx.stroke();
-  // иконка
+  // іконка
   ctx.globalAlpha = d.on ? 1 : 0.4;
   ctx.font = "22px serif";
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText(t.icon, 0, 1);
+  ctx.fillText(dt.icon, 0, 1);
   ctx.globalAlpha = 1;
   // индикатор питания
   ctx.fillStyle = d.on ? "#38d39f" : "#ff5a6a";
@@ -655,29 +658,30 @@ function select(type, ref) {
 
 const inspBody = document.getElementById("insp-body");
 function refreshInspector() {
-  if (!selected) { inspBody.innerHTML = '<p class="muted">Ничего не выбрано</p>'; return; }
+  if (!selected) { inspBody.innerHTML = `<p class="muted">${t("insp.nothing")}</p>`; return; }
   const { type, ref } = selected;
   if (type === "device") return inspDevice(ref);
   if (type === "room") return inspRoom(ref);
   if (type === "cable") return inspCable(ref);
-  if (type === "wall") { inspBody.innerHTML = '<p>Стена / перегородка</p><div class="btn-row"><button id="d-del" class="btn-mini">🗑 Удалить</button></div>'; bindDel(); return; }
+  if (type === "wall") { inspBody.innerHTML = `<p>${t("insp.wall")}</p><div class="btn-row"><button id="d-del" class="btn-mini">${t("insp.delete")}</button></div>`; bindDel(); return; }
 }
 
 function inspDevice(d) {
-  const t = T[d.kind];
+  const dt = T[d.kind];
   const others = model.devices.filter((x) => x !== d);
+  const portsLabel = t("insp.ports", { n: dt.ports }) + (dt.wireless ? t("insp.wifi") : "") + (dt.forward ? t("insp.forward") : "");
   inspBody.innerHTML = `
-    <div class="field"><label>Тип</label><div class="badge">${t.icon} ${t.name}</div>
-      <span class="badge ${d.on ? "up" : "down"}">${d.on ? "● питание ВКЛ" : "○ ВЫКЛ"}</span></div>
-    <div class="field"><label>Имя</label><input id="d-name" value="${escAttr(d.name)}" /></div>
-    <div class="field"><label>IP-адрес</label><input id="d-ip" value="${escAttr(d.ip)}" placeholder="напр. 192.168.0.10" /></div>
-    <div class="field"><label>MAC</label><input value="${d.mac}" readonly /></div>
-    <div class="field"><label>Портов: ${t.ports}${t.wireless ? " · Wi-Fi" : ""}${t.forward ? " · пересылка" : ""}</label></div>
+    <div class="field"><label>${t("insp.type")}</label><div class="badge">${dt.icon} ${devName(d.kind)}</div>
+      <span class="badge ${d.on ? "up" : "down"}">${d.on ? t("insp.powerOnBadge") : t("insp.powerOffBadge")}</span></div>
+    <div class="field"><label>${t("insp.name")}</label><input id="d-name" value="${escAttr(d.name)}" /></div>
+    <div class="field"><label>${t("insp.ip")}</label><input id="d-ip" value="${escAttr(d.ip)}" placeholder="${escAttr(t("insp.ipPlaceholder"))}" /></div>
+    <div class="field"><label>${t("insp.mac")}</label><input value="${d.mac}" readonly /></div>
+    <div class="field"><label>${portsLabel}</label></div>
     <div class="btn-row">
-      <button id="d-power" class="btn-mini">${d.on ? "⏻ Выключить" : "⏻ Включить"}</button>
-      <button id="d-del" class="btn-mini">🗑 Удалить</button>
+      <button id="d-power" class="btn-mini">${d.on ? t("insp.powerOffBtn") : t("insp.powerOnBtn")}</button>
+      <button id="d-del" class="btn-mini">${t("insp.delete")}</button>
     </div>
-    <div class="field" style="margin-top:12px"><label>PING до устройства</label>
+    <div class="field" style="margin-top:12px"><label>${t("insp.pingTo")}</label>
       <div class="row">
         <select id="d-target">${others.map((o) => `<option value="${o.id}">${escHtml(o.name)}</option>`).join("")}</select>
         <button id="d-ping" class="btn-mini">▶</button>
@@ -695,13 +699,13 @@ function inspDevice(d) {
 
 function inspRoom(r) {
   inspBody.innerHTML = `
-    <div class="field"><label>Название помещения</label><input id="r-name" value="${escAttr(r.name)}" /></div>
-    <div class="field"><label>Размер (сетка)</label><div class="badge">${Math.round(r.w)} × ${Math.round(r.h)} px</div></div>
+    <div class="field"><label>${t("insp.roomName")}</label><input id="r-name" value="${escAttr(r.name)}" /></div>
+    <div class="field"><label>${t("insp.size")}</label><div class="badge">${Math.round(r.w)} × ${Math.round(r.h)} px</div></div>
     <div class="row">
-      <div class="field" style="flex:1"><label>Ширина</label><input id="r-w" type="number" value="${Math.round(r.w)}" /></div>
-      <div class="field" style="flex:1"><label>Высота</label><input id="r-h" type="number" value="${Math.round(r.h)}" /></div>
+      <div class="field" style="flex:1"><label>${t("insp.width")}</label><input id="r-w" type="number" value="${Math.round(r.w)}" /></div>
+      <div class="field" style="flex:1"><label>${t("insp.height")}</label><input id="r-h" type="number" value="${Math.round(r.h)}" /></div>
     </div>
-    <div class="btn-row"><button id="d-del" class="btn-mini">🗑 Удалить</button></div>`;
+    <div class="btn-row"><button id="d-del" class="btn-mini">${t("insp.delete")}</button></div>`;
   document.getElementById("r-name").addEventListener("input", (e) => { r.name = e.target.value; autosave(); draw(); });
   document.getElementById("r-w").addEventListener("input", (e) => { r.w = +e.target.value || r.w; autosave(); draw(); });
   document.getElementById("r-h").addEventListener("input", (e) => { r.h = +e.target.value || r.h; autosave(); draw(); });
@@ -711,13 +715,13 @@ function inspRoom(r) {
 function inspCable(c) {
   const a = byId(c.a), b = byId(c.b);
   inspBody.innerHTML = `
-    <div class="field"><label>Соединение</label><div>${escHtml(a?.name || "?")} ⇄ ${escHtml(b?.name || "?")}</div></div>
-    <div class="field"><label>Тип кабеля</label>
+    <div class="field"><label>${t("insp.connection")}</label><div>${escHtml(a?.name || "?")} ⇄ ${escHtml(b?.name || "?")}</div></div>
+    <div class="field"><label>${t("insp.cableType")}</label>
       <select id="c-type">
-        <option value="copper" ${c.type === "copper" ? "selected" : ""}>Витая пара (медь)</option>
-        <option value="fiber" ${c.type === "fiber" ? "selected" : ""}>Оптоволокно</option>
+        <option value="copper" ${c.type === "copper" ? "selected" : ""}>${t("cable.copper")}</option>
+        <option value="fiber" ${c.type === "fiber" ? "selected" : ""}>${t("cable.fiber")}</option>
       </select></div>
-    <div class="btn-row"><button id="d-del" class="btn-mini">🗑 Удалить</button></div>`;
+    <div class="btn-row"><button id="d-del" class="btn-mini">${t("insp.delete")}</button></div>`;
   document.getElementById("c-type").addEventListener("change", (e) => { c.type = e.target.value; autosave(); draw(); });
   bindDel();
 }
@@ -772,15 +776,15 @@ function loadData(data) {
 }
 
 document.getElementById("btn-save").addEventListener("click", async () => {
-  const name = document.getElementById("proj-name").value.trim() || "без-имени";
+  const name = document.getElementById("proj-name").value.trim() || "untitled";
   try {
     await fetch(`/api/projects/${encodeURIComponent(name)}`, {
       method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(serialize()),
     });
-    log(`💾 Проект сохранён: «${name}»`, "ok");
+    log(t("log.saved", { name }), "ok");
     refreshProjects();
-  } catch { log("Ошибка сохранения", "err"); }
+  } catch { log(t("log.saveErr"), "err"); }
 });
 
 const projList = document.getElementById("proj-list");
@@ -791,7 +795,7 @@ projList.addEventListener("change", async () => {
   if (r.ok) {
     loadData(await r.json());
     document.getElementById("proj-name").value = name;
-    log(`Открыт проект: «${name}»`, "info");
+    log(t("log.opened", { name }), "info");
   }
   projList.value = "";
 });
@@ -800,16 +804,16 @@ async function refreshProjects() {
   try {
     const r = await fetch("/api/projects");
     const names = await r.json();
-    projList.innerHTML = '<option value="">— открыть —</option>' +
+    projList.innerHTML = `<option value="">${t("proj.open")}</option>` +
       names.map((n) => `<option value="${escAttr(n)}">${escHtml(n)}</option>`).join("");
   } catch {}
 }
 
 document.getElementById("btn-clear").addEventListener("click", () => {
-  if (!confirm("Очистить весь холст?")) return;
+  if (!confirm(t("confirm.clear"))) return;
   model = { rooms: [], walls: [], devices: [], cables: [] };
   nextId = 1; select(null); autosave(); draw();
-  log("Холст очищен", "dim");
+  log(t("log.cleared"), "dim");
 });
 
 /* ====================================================================
@@ -817,13 +821,30 @@ document.getElementById("btn-clear").addEventListener("click", () => {
    ==================================================================== */
 function boot() {
   resize();
-  // центрируем вид
+  // центруємо вид
   view.x = 60; view.y = 40;
+
+  // ----- мова / i18n -----
+  const langSel = document.getElementById("lang-sel");
+  langSel.value = window.getLang();
+  langSel.addEventListener("change", () => window.setLang(langSel.value));
+  // при зміні мови перебудовуємо динамічні частини
+  window.onLangChange = () => {
+    langSel.value = window.getLang();
+    buildPalette();
+    refreshProjects();
+    refreshInspector();
+    setStatus(t("status.ready"));
+    draw();
+  };
+  window.applyI18n();
+  setStatus(t("status.ready"));
+
   const saved = localStorage.getItem("netplanner:auto");
   if (saved) { try { loadData(JSON.parse(saved)); } catch {} }
   refreshProjects();
   draw();
-  log("NetPlanner готов. Перетащите устройство из палитры на холст.", "info");
-  log("Подсказка: двойной клик по устройству — вкл/выкл питание.", "dim");
+  log(t("log.bootReady"), "info");
+  log(t("log.bootHint"), "dim");
 }
 boot();
