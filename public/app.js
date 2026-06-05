@@ -22,6 +22,7 @@ const WIRELESS_RANGE = 190;
 let tool = "select";
 let selected = null;          // выбранный объект {type, ref}
 let drag = null;              // активное перетаскивание
+let resizing = null;          // изменение размера {kind:'room'|'wall', ref, handle}
 let draftRoom = null;         // рисуемая комната
 let draftWall = null;         // рисуемая стена
 let cableFrom = null;         // первый конец провода
@@ -166,6 +167,61 @@ function distToSeg(px, py, x1, y1, x2, y2) {
   return Math.hypot(px - cx, py - cy);
 }
 
+/* ----- Ручки зміни розміру ----- */
+const ROOM_MIN = GRID;                       // мінімальний розмір кімнати
+
+// Координати 8 ручок кімнати
+function roomHandles(r) {
+  const { x, y, w, h } = r;
+  return {
+    nw: [x, y], n: [x + w / 2, y], ne: [x + w, y],
+    e: [x + w, y + h / 2], se: [x + w, y + h], s: [x + w / 2, y + h],
+    sw: [x, y + h], w: [x, y + h / 2],
+  };
+}
+// Координати кінців стіни
+function wallHandles(wl) { return { a: [wl.x1, wl.y1], b: [wl.x2, wl.y2] }; }
+
+// Курсор для ручки
+const HANDLE_CURSOR = {
+  nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize",
+  n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize", a: "move", b: "move",
+};
+
+// Знайти ручку під курсором для виділеного об'єкта
+function handleAt(wx, wy) {
+  if (!selected) return null;
+  const tol = 8 / view.scale;
+  let hs = null;
+  if (selected.type === "room") hs = roomHandles(selected.ref);
+  else if (selected.type === "wall") hs = wallHandles(selected.ref);
+  if (!hs) return null;
+  for (const k in hs) {
+    if (Math.hypot(wx - hs[k][0], wy - hs[k][1]) <= tol) return k;
+  }
+  return null;
+}
+
+// Перерахунок геометрії кімнати при тягненні ручки
+function resizeRoom(r, h, wx, wy) {
+  let left = r.x, top = r.y, right = r.x + r.w, bottom = r.y + r.h;
+  if (h.includes("e")) right = Math.max(left + ROOM_MIN, snap(wx));
+  if (h.includes("w")) left = Math.min(right - ROOM_MIN, snap(wx));
+  if (h.includes("s")) bottom = Math.max(top + ROOM_MIN, snap(wy));
+  if (h.includes("n")) top = Math.min(bottom - ROOM_MIN, snap(wy));
+  r.x = left; r.y = top; r.w = right - left; r.h = bottom - top;
+}
+function resizeWall(wl, h, wx, wy) {
+  if (h === "a") { wl.x1 = snap(wx); wl.y1 = snap(wy); }
+  else { wl.x2 = snap(wx); wl.y2 = snap(wy); }
+}
+
+// Пристрої, центр яких лежить у межах кімнати (для спільного переміщення)
+function devicesInRoom(r) {
+  return model.devices.filter((d) =>
+    d.x >= r.x && d.x <= r.x + r.w && d.y >= r.y && d.y <= r.y + r.h);
+}
+
 /* ====================================================================
    Инструменты (верхняя панель)
    ==================================================================== */
@@ -209,6 +265,12 @@ cv.addEventListener("mousedown", (e) => {
   if (e.button !== 0) return;
 
   if (tool === "select") {
+    // 1) ручка зміни розміру виділеного об'єкта має пріоритет
+    const handle = handleAt(w.x, w.y);
+    if (handle) {
+      resizing = { kind: selected.type, ref: selected.ref, handle };
+      return;
+    }
     const d = deviceAt(w.x, w.y);
     if (d) { select("device", d); drag = { kind: "device", ref: d, dx: w.x - d.x, dy: w.y - d.y }; return; }
     const c = cableAt(w.x, w.y);
@@ -216,7 +278,9 @@ cv.addEventListener("mousedown", (e) => {
     const r = roomAt(w.x, w.y);
     if (r) {
       select("room", r);
-      drag = { kind: "room", ref: r, dx: w.x - r.x, dy: w.y - r.y };
+      // захоплюємо пристрої всередині кімнати — рухатимуться разом із нею
+      const children = devicesInRoom(r).map((dd) => ({ d: dd, ox: dd.x, oy: dd.y }));
+      drag = { kind: "room", ref: r, dx: w.x - r.x, dy: w.y - r.y, rox: r.x, roy: r.y, children };
       return;
     }
     const wl = wallAt(w.x, w.y);
@@ -251,9 +315,22 @@ cv.addEventListener("mousemove", (e) => {
   }
   mouse = { x: p.x, y: p.y, wx: w.x, wy: w.y };
 
+  if (resizing) {
+    if (resizing.kind === "room") resizeRoom(resizing.ref, resizing.handle, w.x, w.y);
+    else if (resizing.kind === "wall") resizeWall(resizing.ref, resizing.handle, w.x, w.y);
+    if (selected && selected.type === "room") refreshInspector();
+    draw();
+    return;
+  }
+
   if (drag) {
     if (drag.kind === "device") { drag.ref.x = snap(w.x - drag.dx); drag.ref.y = snap(w.y - drag.dy); }
-    if (drag.kind === "room") { drag.ref.x = snap(w.x - drag.dx); drag.ref.y = snap(w.y - drag.dy); }
+    if (drag.kind === "room") {
+      drag.ref.x = snap(w.x - drag.dx); drag.ref.y = snap(w.y - drag.dy);
+      // зсуваємо вкладені пристрої на ту саму дельту
+      const ddx = drag.ref.x - drag.rox, ddy = drag.ref.y - drag.roy;
+      for (const ch of drag.children) { ch.d.x = ch.ox + ddx; ch.d.y = ch.oy + ddy; }
+    }
     draw();
   } else if (draftRoom) {
     draftRoom.w = snap(w.x) - draftRoom.x;
@@ -264,11 +341,16 @@ cv.addEventListener("mousemove", (e) => {
     draw();
   } else if (tool === "cable" && cableFrom) {
     draw();
+  } else if (tool === "select") {
+    // підказка курсором над ручками зміни розміру
+    const hk = handleAt(w.x, w.y);
+    cv.style.cursor = hk ? HANDLE_CURSOR[hk] : "default";
   }
 });
 
 window.addEventListener("mouseup", () => {
   if (panning) { panning = false; cv.style.cursor = tool === "select" ? "default" : "crosshair"; }
+  if (resizing) { autosave(); commit(); resizing = null; }
   if (drag) { autosave(); commit(); drag = null; }
   if (draftRoom) {
     if (Math.abs(draftRoom.w) > 10 && Math.abs(draftRoom.h) > 10) {
@@ -529,6 +611,10 @@ function draw() {
 
   model.devices.forEach(drawDevice);
 
+  // ручки зміни розміру для виділеної кімнати / стіни
+  if (selected && selected.type === "room") drawHandles(roomHandles(selected.ref));
+  else if (selected && selected.type === "wall") drawHandles(wallHandles(selected.ref));
+
   // пакеты
   packets.forEach((p) => {
     const pos = packetPos(p);
@@ -538,6 +624,19 @@ function draw() {
   });
 
   ctx.restore();
+}
+
+function drawHandles(hs) {
+  const s = 5 / view.scale;            // сталий екранний розмір
+  ctx.lineWidth = 1.5 / view.scale;
+  for (const k in hs) {
+    const [hx, hy] = hs[k];
+    ctx.fillStyle = "#3ea6ff";
+    ctx.strokeStyle = "#fff";
+    ctx.beginPath();
+    ctx.rect(hx - s, hy - s, s * 2, s * 2);
+    ctx.fill(); ctx.stroke();
+  }
 }
 
 function drawGrid(w, h) {
