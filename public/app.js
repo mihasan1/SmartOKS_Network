@@ -1562,7 +1562,8 @@ function buildPNG(scale = 2) {
 }
 
 function projName() {
-  return (document.getElementById("proj-name").value.trim() || "netplanner").replace(/[^\w\-а-яА-ЯіїєґІЇЄҐ ]/g, "");
+  const el = document.getElementById("proj-name");
+  return ((el ? el.value : "").trim() || "netplanner").replace(/[^\w\-а-яА-ЯіїєґІЇЄҐ ]/g, "");
 }
 
 document.getElementById("btn-png").addEventListener("click", () => {

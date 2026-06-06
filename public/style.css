@@ -99,6 +99,7 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 .tool.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: var(--shadow-sm); }
 .tool.active .ic { stroke: #fff; }
 .icon-btn { padding: 8px; }
+.proj-name { width: 120px; }
 #btn-sim.on { background: var(--accent2); color: #fff; border-color: var(--accent2); }
 #btn-sim.on .ic { stroke: #fff; }
 button:disabled { opacity: .4; cursor: default; }
