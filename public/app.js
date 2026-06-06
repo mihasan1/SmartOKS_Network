@@ -941,7 +941,7 @@ function drawWall(w) {
    ==================================================================== */
 const DEV_OBST = 30;     // напівширина перешкоди навколо пристрою
 const PORT_OUT = 24;     // точка виходу за межами корпусу
-const RG = 16;           // крок сітки трасування
+const RG = 12;           // крок сітки трасування (дільник GRID=24 → порти лягають на вузли)
 const ROUTE = { sig: "", cache: new Map() };
 
 function routeSignature() {
@@ -996,11 +996,13 @@ function routeCable(a, b) {
   const pa = portPoint(a, b), pb = portPoint(b, a);
   const obst = model.devices.filter((d) => d !== a && d !== b)
     .map((d) => ({ x1: d.x - DEV_OBST, y1: d.y - DEV_OBST, x2: d.x + DEV_OBST, y2: d.y + DEV_OBST }));
-  const pad = 140;
-  const minX = Math.min(pa.x, pb.x) - pad, minY = Math.min(pa.y, pb.y) - pad;
+  const pad = 144;
+  // вирівнюємо початок сітки на крок RG, щоб координати портів (кратні 24) лягали точно на вузли
+  const minX = Math.floor((Math.min(pa.x, pb.x) - pad) / RG) * RG;
+  const minY = Math.floor((Math.min(pa.y, pb.y) - pad) / RG) * RG;
   const maxX = Math.max(pa.x, pb.x) + pad, maxY = Math.max(pa.y, pb.y) + pad;
-  const cols = Math.min(420, Math.max(2, Math.round((maxX - minX) / RG)));
-  const rows = Math.min(420, Math.max(2, Math.round((maxY - minY) / RG)));
+  const cols = Math.min(520, Math.max(2, Math.ceil((maxX - minX) / RG)));
+  const rows = Math.min(520, Math.max(2, Math.ceil((maxY - minY) / RG)));
   const blocked = (cx, cy) => {
     const x = minX + cx * RG, y = minY + cy * RG;
     for (const o of obst) if (x > o.x1 && x < o.x2 && y > o.y1 && y < o.y2) return true;
@@ -1106,7 +1108,7 @@ function drawCable(c) {
   ctx.strokeStyle = isSel(c) ? TH.sel : color;
   ctx.lineWidth = c.type === "fiber" ? 3.5 : 3;
   ctx.lineJoin = "round"; ctx.lineCap = "round";
-  strokeRounded(pts, 9);
+  strokeRounded(pts, 6);
   // конектори на кінцях (на межі корпусу)
   ctx.fillStyle = color;
   [pts[0], pts[pts.length - 1]].forEach((p) => { ctx.beginPath(); ctx.arc(p.x, p.y, 3.2, 0, Math.PI * 2); ctx.fill(); });
