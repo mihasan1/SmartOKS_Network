@@ -138,6 +138,24 @@ SmartOKS_Network/
 
 ---
 
+## 📥 Import from SmartOKS
+
+The [SmartOKS platform](https://github.com/mihasan1/smartoks) can export its
+knowledge base (rooms + networkable devices) straight into this planner.
+
+In SmartOKS open **База знань → Експорт у Network** and download the JSON file,
+then load it here via **Import** (the JSON import button). The file uses the
+planner's native project format (`{ model: { rooms, devices, walls, cables }, nextId, view }`),
+so no conversion is needed.
+
+What comes across:
+
+- **Rooms** — every cabinet, keeping its SmartOKS name; sized to fit its devices.
+- **Devices** — PCs, laptops, printers/MFPs and routers, laid out on a grid
+  inside their room. Device names are unique: `{room}_PC{n}` (e.g. `22_PC1`).
+- **IP** — transferred when set on the device (MAC too, if present).
+- **No links** — devices arrive unconnected; wiring is done here in the planner.
+
 ## 🗺 Roadmap
 
 - VLANs with color-coded port tags.
