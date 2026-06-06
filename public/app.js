@@ -210,9 +210,10 @@ function roomAt(wx, wy) {
 }
 function cableAt(wx, wy) {
   for (const c of model.cables) {
-    const a = byId(c.a), b = byId(c.b);
-    if (!a || !b) continue;
-    if (distToSeg(wx, wy, a.x, a.y, b.x, b.y) < 7) return c;
+    const pts = getRoute(c);
+    for (let i = 0; i < pts.length - 1; i++) {
+      if (distToSeg(wx, wy, pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y) < 7) return c;
+    }
   }
   return null;
 }
@@ -763,7 +764,7 @@ function ping(src, dst) {
   const path = findPath(src, dst);
   if (!path) { log(t("ping.noRoute", { a: src.name, b: dst.name }), "err"); return; }
   log(t("ping.start", { name: dst.name, ip: dst.ip || t("val.unknown"), src: src.name }), "info");
-  const pts = path.map((d) => ({ x: d.x, y: d.y }));
+  const pts = buildPacketPath(path);
   let seq = 0;
   const fire = () => {
     if (seq >= 4) return;
@@ -825,6 +826,7 @@ function packetPos(p) {
 function draw() {
   const w = renderW ?? cv.clientWidth, h = renderH ?? cv.clientHeight;
   conflictSet = ipConflictSet();
+  ensureRoutes();
   ctx.save();
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = TH.canvasBg;
@@ -933,24 +935,181 @@ function drawWall(w) {
   ctx.beginPath(); ctx.moveTo(w.x1, w.y1); ctx.lineTo(w.x2, w.y2); ctx.stroke();
 }
 
+/* ====================================================================
+   Ортогональна трасування кабелів (Manhattan) з обходом пристроїв (A*).
+   Маршрути кешуються; перераховуються лише коли змінились позиції/кабелі.
+   ==================================================================== */
+const DEV_OBST = 30;     // напівширина перешкоди навколо пристрою
+const PORT_OUT = 24;     // точка виходу за межами корпусу
+const RG = 16;           // крок сітки трасування
+const ROUTE = { sig: "", cache: new Map() };
+
+function routeSignature() {
+  return model.devices.map((d) => `${d.id}:${Math.round(d.x)},${Math.round(d.y)}`).join("|") +
+    "#" + model.cables.map((c) => `${c.a}-${c.b}`).join("|");
+}
+function ensureRoutes() {
+  const sig = routeSignature();
+  if (sig === ROUTE.sig) return;
+  ROUTE.sig = sig;
+  ROUTE.cache.clear();
+  for (const c of model.cables) {
+    const a = byId(c.a), b = byId(c.b);
+    if (a && b) ROUTE.cache.set(c.id, routeCable(a, b));
+  }
+}
+function getRoute(c) {
+  if (!ROUTE.cache.has(c.id)) {
+    const a = byId(c.a), b = byId(c.b);
+    ROUTE.cache.set(c.id, a && b ? routeCable(a, b) : []);
+  }
+  return ROUTE.cache.get(c.id) || [];
+}
+
+// Шлях пакета пінгу вздовж кабелів (через реальні маршрути)
+function buildPacketPath(devs) {
+  const out = [{ x: devs[0].x, y: devs[0].y }];
+  for (let i = 0; i < devs.length - 1; i++) {
+    const d1 = devs[i], d2 = devs[i + 1];
+    const c = model.cables.find((c) => (c.a === d1.id && c.b === d2.id) || (c.a === d2.id && c.b === d1.id));
+    if (c) {
+      let r = getRoute(c).slice();
+      if (r.length > 1 && Math.hypot(r[0].x - d1.x, r[0].y - d1.y) > Math.hypot(r[r.length - 1].x - d1.x, r[r.length - 1].y - d1.y)) r.reverse();
+      out.push(...r);
+    }
+    out.push({ x: d2.x, y: d2.y });
+  }
+  return out;
+}
+
+function portPoint(from, to) {
+  const dx = to.x - from.x, dy = to.y - from.y;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    const s = dx >= 0 ? 1 : -1;
+    return { x: from.x + s * PORT_OUT, y: from.y, dx: s, dy: 0 };
+  }
+  const s = dy >= 0 ? 1 : -1;
+  return { x: from.x, y: from.y + s * PORT_OUT, dx: 0, dy: s };
+}
+
+function routeCable(a, b) {
+  const pa = portPoint(a, b), pb = portPoint(b, a);
+  const obst = model.devices.filter((d) => d !== a && d !== b)
+    .map((d) => ({ x1: d.x - DEV_OBST, y1: d.y - DEV_OBST, x2: d.x + DEV_OBST, y2: d.y + DEV_OBST }));
+  const pad = 140;
+  const minX = Math.min(pa.x, pb.x) - pad, minY = Math.min(pa.y, pb.y) - pad;
+  const maxX = Math.max(pa.x, pb.x) + pad, maxY = Math.max(pa.y, pb.y) + pad;
+  const cols = Math.min(420, Math.max(2, Math.round((maxX - minX) / RG)));
+  const rows = Math.min(420, Math.max(2, Math.round((maxY - minY) / RG)));
+  const blocked = (cx, cy) => {
+    const x = minX + cx * RG, y = minY + cy * RG;
+    for (const o of obst) if (x > o.x1 && x < o.x2 && y > o.y1 && y < o.y2) return true;
+    return false;
+  };
+  const cell = (px, py) => [
+    Math.max(0, Math.min(cols, Math.round((px - minX) / RG))),
+    Math.max(0, Math.min(rows, Math.round((py - minY) / RG))),
+  ];
+  const stubA = { x: pa.x + pa.dx * RG, y: pa.y + pa.dy * RG };
+  const stubB = { x: pb.x + pb.dx * RG, y: pb.y + pb.dy * RG };
+  const [sx, sy] = cell(stubA.x, stubA.y);
+  const [gx, gy] = cell(stubB.x, stubB.y);
+
+  const path = astar(sx, sy, gx, gy, cols, rows, blocked);
+  let pts;
+  if (path) {
+    const grid = path.map(([cx, cy]) => ({ x: minX + cx * RG, y: minY + cy * RG }));
+    const first = grid[0], last = grid[grid.length - 1];
+    // ортогональні з'єднувачі від портів до сітки (щоб уникнути діагоналей)
+    const head = pa.dy === 0 ? { x: first.x, y: pa.y } : { x: pa.x, y: first.y };
+    const tail = pb.dy === 0 ? { x: last.x, y: pb.y } : { x: pb.x, y: last.y };
+    pts = [pa, head, ...grid, tail, pb];
+  } else {
+    // запасний ортогональний Z-маршрут
+    const midx = (pa.x + pb.x) / 2;
+    pts = [pa, { x: midx, y: pa.y }, { x: midx, y: pb.y }, pb];
+  }
+  return simplifyOrtho(pts);
+}
+
+// A* по сітці; стан включає напрям — штраф за поворот дає менше згинів
+function astar(sx, sy, gx, gy, cols, rows, blocked) {
+  const DIRS = [[1, 0, 0], [-1, 0, 1], [0, 1, 2], [0, -1, 3]];
+  const key = (x, y, d) => (y * (cols + 1) + x) * 4 + (d + 1);
+  const best = new Map();
+  const heap = new MinHeap();
+  const start = { x: sx, y: sy, d: -1, g: 0, parent: null };
+  heap.push(start, Math.abs(gx - sx) + Math.abs(gy - sy));
+  let iter = 0;
+  while (!heap.isEmpty() && iter++ < 200000) {
+    const cur = heap.pop();
+    if (cur.x === gx && cur.y === gy) {
+      const path = []; let n = cur;
+      while (n) { path.push([n.x, n.y]); n = n.parent; }
+      return path.reverse();
+    }
+    const ck = key(cur.x, cur.y, cur.d);
+    if (best.has(ck) && best.get(ck) < cur.g) continue;
+    for (const [ddx, ddy, nd] of DIRS) {
+      const nx = cur.x + ddx, ny = cur.y + ddy;
+      if (nx < 0 || ny < 0 || nx > cols || ny > rows || blocked(nx, ny)) continue;
+      const ng = cur.g + 1 + (cur.d !== -1 && cur.d !== nd ? 4 : 0);
+      const nk = key(nx, ny, nd);
+      if (best.has(nk) && best.get(nk) <= ng) continue;
+      best.set(nk, ng);
+      heap.push({ x: nx, y: ny, d: nd, g: ng, parent: cur }, ng + Math.abs(gx - nx) + Math.abs(gy - ny));
+    }
+  }
+  return null;
+}
+
+// прибрати проміжні точки на прямих відрізках
+function simplifyOrtho(pts) {
+  if (pts.length <= 2) return pts;
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const a = out[out.length - 1], b = pts[i], c = pts[i + 1];
+    const collinear = (Math.abs(a.x - b.x) < 0.5 && Math.abs(b.x - c.x) < 0.5) ||
+                      (Math.abs(a.y - b.y) < 0.5 && Math.abs(b.y - c.y) < 0.5);
+    if (!collinear) out.push(b);
+  }
+  out.push(pts[pts.length - 1]);
+  return out;
+}
+
+// мінімальна купа для A*
+class MinHeap {
+  constructor() { this.a = []; }
+  isEmpty() { return this.a.length === 0; }
+  push(item, p) { const a = this.a; a.push({ item, p }); let i = a.length - 1; while (i > 0) { const par = (i - 1) >> 1; if (a[par].p <= a[i].p) break; [a[par], a[i]] = [a[i], a[par]]; i = par; } }
+  pop() { const a = this.a; const top = a[0]; const last = a.pop(); if (a.length) { a[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < a.length && a[l].p < a[m].p) m = l; if (r < a.length && a[r].p < a[m].p) m = r; if (m === i) break; [a[m], a[i]] = [a[i], a[m]]; i = m; } } return top.item; }
+}
+
+// малювання полілінії зі скругленими кутами
+function strokeRounded(pts, r) {
+  if (pts.length < 2) return;
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < pts.length - 1; i++) ctx.arcTo(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, r);
+  ctx.lineTo(pts[pts.length - 1].x, pts[pts.length - 1].y);
+  ctx.stroke();
+}
+
 function drawCable(c) {
   const a = byId(c.a), b = byId(c.b);
   if (!a || !b) return;
+  const pts = getRoute(c);
+  if (pts.length < 2) return;
   const live = a.on && b.on;
   let color = c.type === "fiber" ? TH.cableFiber : TH.cableCopper;
   if (simOn) color = live ? TH.ok : TH.danger;
   ctx.strokeStyle = isSel(c) ? TH.sel : color;
   ctx.lineWidth = c.type === "fiber" ? 3.5 : 3;
-  ctx.lineCap = "round";
-  // лёгкий провис провода
-  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 + 10;
-  ctx.beginPath();
-  ctx.moveTo(a.x, a.y);
-  ctx.quadraticCurveTo(mx, my, b.x, b.y);
-  ctx.stroke();
-  // коннекторы на концах
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
+  strokeRounded(pts, 9);
+  // конектори на кінцях (на межі корпусу)
   ctx.fillStyle = color;
-  [a, b].forEach((d) => { ctx.beginPath(); ctx.arc(d.x, d.y, 3.5, 0, Math.PI * 2); ctx.fill(); });
+  [pts[0], pts[pts.length - 1]].forEach((p) => { ctx.beginPath(); ctx.arc(p.x, p.y, 3.2, 0, Math.PI * 2); ctx.fill(); });
 }
 
 function drawWifiRange(d) {
