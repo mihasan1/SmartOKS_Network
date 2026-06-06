@@ -271,6 +271,32 @@ kbd {
 #help-ok:hover { background: var(--accent-press); }
 @media (max-width: 640px) { .help-body { grid-template-columns: 1fr; } }
 
+/* ===== Індикатор прогресу ===== */
+#progress-overlay {
+  position: fixed; inset: 0; z-index: 1100; display: none;
+  align-items: center; justify-content: center;
+  background: rgba(15, 20, 35, .45); backdrop-filter: blur(2px);
+}
+#progress-card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+  padding: 24px 28px; width: 300px; text-align: center;
+}
+.spinner {
+  width: 36px; height: 36px; margin: 0 auto 14px;
+  border: 3px solid var(--panel-2); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.progress-label { font-weight: 700; font-size: 13.5px; margin-bottom: 4px; }
+.progress-time { font-size: 12px; color: var(--muted); margin-bottom: 14px; font-variant-numeric: tabular-nums; }
+.progress-track { height: 6px; background: var(--panel-2); border-radius: 6px; overflow: hidden; }
+.progress-bar {
+  height: 100%; width: 38%; background: var(--accent); border-radius: 6px;
+  animation: indet 1.1s ease-in-out infinite;
+}
+@keyframes indet { 0% { transform: translateX(-120%); } 100% { transform: translateX(380%); } }
+
 /* скролбари */
 aside::-webkit-scrollbar, #console::-webkit-scrollbar { width: 8px; }
 aside::-webkit-scrollbar-thumb, #console::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }

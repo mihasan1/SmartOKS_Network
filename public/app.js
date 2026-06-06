@@ -1462,16 +1462,18 @@ function updateHistButtons() {
 document.getElementById("btn-undo").addEventListener("click", undo);
 document.getElementById("btn-redo").addEventListener("click", redo);
 
-document.getElementById("btn-save").addEventListener("click", async () => {
-  const name = document.getElementById("proj-name").value.trim() || "untitled";
-  try {
-    await fetch(`/api/projects/${encodeURIComponent(name)}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(serialize()),
-    });
-    log(t("log.saved", { name }), "ok");
-    refreshProjects();
-  } catch { log(t("log.saveErr"), "err"); }
+document.getElementById("btn-save").addEventListener("click", () => {
+  const name = projName();
+  runWithProgress(t("progress.save"), async () => {
+    try {
+      await fetch(`/api/projects/${encodeURIComponent(name)}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(serialize()),
+      });
+      log(t("log.saved", { name }), "ok");
+      refreshProjects();
+    } catch { log(t("log.saveErr"), "err"); }
+  });
 });
 
 const projList = document.getElementById("proj-list");
@@ -1526,6 +1528,33 @@ function fitToContent(pad = 50) {
   return true;
 }
 
+/* ----- Індикатор прогресу для повільних операцій ----- */
+let _progTimer = null, _progStart = 0;
+function showProgress(label) {
+  const ov = document.getElementById("progress-overlay");
+  document.getElementById("progress-label").textContent = label;
+  const timeEl = document.getElementById("progress-time");
+  _progStart = performance.now();
+  timeEl.textContent = "0.0 " + t("progress.sec");
+  ov.style.display = "flex";
+  clearInterval(_progTimer);
+  _progTimer = setInterval(() => {
+    timeEl.textContent = ((performance.now() - _progStart) / 1000).toFixed(1) + " " + t("progress.sec");
+  }, 100);
+}
+function hideProgress() {
+  clearInterval(_progTimer); _progTimer = null;
+  document.getElementById("progress-overlay").style.display = "none";
+}
+// показати оверлей, дати йому намалюватись, виконати роботу, сховати
+async function runWithProgress(label, work) {
+  showProgress(label);
+  // даємо оверлею намалюватись (setTimeout надійніший за rAF — працює й у фоновій вкладці)
+  await new Promise((r) => setTimeout(r, 30));
+  try { return await work(); }
+  finally { hideProgress(); }
+}
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -1567,9 +1596,10 @@ function projName() {
 }
 
 document.getElementById("btn-png").addEventListener("click", () => {
-  const url = buildPNG();
-  if (!url) return;
-  fetch(url).then((r) => r.blob()).then((b) => {
+  runWithProgress(t("progress.png"), async () => {
+    const url = buildPNG();
+    if (!url) return;
+    const b = await (await fetch(url)).blob();
     downloadBlob(b, `${projName()}.png`);
     log(t("log.exportedPng"), "ok");
   });
@@ -1587,9 +1617,11 @@ document.getElementById("btn-print").addEventListener("click", () => {
 });
 
 document.getElementById("btn-export").addEventListener("click", () => {
-  const blob = new Blob([JSON.stringify(serialize(), null, 2)], { type: "application/json" });
-  downloadBlob(blob, `${projName()}.json`);
-  log(t("log.exportedJson"), "ok");
+  runWithProgress(t("progress.json"), async () => {
+    const blob = new Blob([JSON.stringify(serialize(), null, 2)], { type: "application/json" });
+    downloadBlob(blob, `${projName()}.json`);
+    log(t("log.exportedJson"), "ok");
+  });
 });
 
 document.getElementById("btn-import").addEventListener("click", () => document.getElementById("file-import").click());
