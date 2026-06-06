@@ -834,7 +834,7 @@ function draw() {
   ctx.scale(view.scale, view.scale);
 
   if (layers.grid) drawGrid(w, h);
-  if (layers.rooms) model.rooms.forEach(drawRoom);
+  if (layers.rooms) model.rooms.forEach((r) => drawRoom(r));
   model.walls.forEach(drawWall);
   if (draftRoom) drawRoom(draftRoom, true);
   if (draftWall) drawWall(draftWall);
