@@ -394,6 +394,21 @@ cv.addEventListener("mousedown", (e) => {
       resizing = { kind, ref: selected.ref, handle };
       return;
     }
+    // 1б) ручки згину виділеного кабелю (перетягнути вузол / додати вузол)
+    if (selected && selected.type === "cable") {
+      const ch = cableHandleAt(selected.ref, w.x, w.y);
+      if (ch) {
+        const c = selected.ref;
+        if (ch.type === "add") {
+          ensureManual(c);
+          c.waypoints.splice(ch.seg, 0, { x: snap(ch.x), y: snap(ch.y) });
+          ROUTE.sig = ""; resizing = { kind: "wpDrag", ref: c, index: ch.seg };
+        } else {
+          resizing = { kind: "wpDrag", ref: c, index: ch.index };
+        }
+        return;
+      }
+    }
     const d = deviceAt(w.x, w.y);
     if (d) {
       if (e.shiftKey) {
@@ -467,6 +482,13 @@ cv.addEventListener("mousemove", (e) => {
       dd.range = Math.max(RANGE_MIN, Math.min(RANGE_MAX, r));
       refreshInspector();
     }
+    else if (resizing.kind === "wpDrag") {
+      const c = resizing.ref;
+      if (c.waypoints && c.waypoints[resizing.index]) {
+        c.waypoints[resizing.index] = { x: snap(w.x), y: snap(w.y) };
+        ROUTE.sig = "";   // перерахувати маршрут
+      }
+    }
     if (selected && selected.type === "room") refreshInspector();
     draw();
     return;
@@ -501,9 +523,11 @@ cv.addEventListener("mousemove", (e) => {
   } else if (tool === "cable" && cableFrom) {
     draw();
   } else if (tool === "select") {
-    // підказка курсором над ручками зміни розміру
+    // підказка курсором над ручками зміни розміру / згину
     const hk = handleAt(w.x, w.y);
-    cv.style.cursor = hk ? HANDLE_CURSOR[hk] : "default";
+    if (hk) cv.style.cursor = HANDLE_CURSOR[hk];
+    else if (selected && selected.type === "cable" && cableHandleAt(selected.ref, w.x, w.y)) cv.style.cursor = "move";
+    else cv.style.cursor = "default";
   }
 });
 
@@ -564,6 +588,16 @@ cv.addEventListener("wheel", (e) => {
 cv.addEventListener("dblclick", (e) => {
   const p = screenPos(e);
   const w = toWorld(p.x, p.y);
+  // подвійний клік по вузлу згину виділеного кабелю — видалити вузол
+  if (selected && selected.type === "cable" && selected.ref.waypoints) {
+    const ch = cableHandleAt(selected.ref, w.x, w.y);
+    if (ch && ch.type === "wp") {
+      selected.ref.waypoints.splice(ch.index, 1);
+      if (!selected.ref.waypoints.length) delete selected.ref.waypoints;  // знову авто-маршрут
+      ROUTE.sig = ""; autosave(); commit(); draw();
+      return;
+    }
+  }
   const d = deviceAt(w.x, w.y);
   if (d) { d.on = !d.on; log(t("log.power", { name: d.name, state: t(d.on ? "power.on" : "power.off") }), d.on ? "ok" : "err"); draw(); autosave(); commit(); }
 });
@@ -879,6 +913,7 @@ function draw() {
   // ручки зміни розміру для виділеної кімнати / стіни
   if (selected && selected.type === "room") drawHandles(roomHandles(selected.ref));
   else if (selected && selected.type === "wall") drawHandles(wallHandles(selected.ref));
+  else if (selected && selected.type === "cable") drawCableHandles(selected.ref);
 
   // пакеты
   packets.forEach((p) => {
@@ -950,7 +985,7 @@ const ROUTE = { sig: "", cache: new Map() };
 
 function routeSignature() {
   return model.devices.map((d) => `${d.id}:${Math.round(d.x)},${Math.round(d.y)}`).join("|") +
-    "#" + model.cables.map((c) => `${c.a}-${c.b}`).join("|");
+    "#" + model.cables.map((c) => `${c.a}-${c.b}:${c.waypoints ? c.waypoints.map((w) => w.x + "," + w.y).join(";") : ""}`).join("|");
 }
 function ensureRoutes() {
   const sig = routeSignature();
@@ -959,13 +994,13 @@ function ensureRoutes() {
   ROUTE.cache.clear();
   for (const c of model.cables) {
     const a = byId(c.a), b = byId(c.b);
-    if (a && b) ROUTE.cache.set(c.id, routeCable(a, b));
+    if (a && b) ROUTE.cache.set(c.id, routeCable(a, b, c.waypoints));
   }
 }
 function getRoute(c) {
   if (!ROUTE.cache.has(c.id)) {
     const a = byId(c.a), b = byId(c.b);
-    ROUTE.cache.set(c.id, a && b ? routeCable(a, b) : []);
+    ROUTE.cache.set(c.id, a && b ? routeCable(a, b, c.waypoints) : []);
   }
   return ROUTE.cache.get(c.id) || [];
 }
@@ -996,7 +1031,13 @@ function portPoint(from, to) {
   return { x: from.x, y: from.y + s * PORT_OUT, dx: 0, dy: s };
 }
 
-function routeCable(a, b) {
+function routeCable(a, b, waypoints) {
+  // ручний маршрут: користувач сам задав вузли згину
+  if (waypoints && waypoints.length) {
+    const pa = portPoint(a, waypoints[0]);
+    const pb = portPoint(b, waypoints[waypoints.length - 1]);
+    return [pa, ...waypoints.map((w) => ({ x: w.x, y: w.y })), pb];
+  }
   const pa = portPoint(a, b), pb = portPoint(b, a);
   const obst = model.devices.filter((d) => d !== a && d !== b)
     .map((d) => ({ x1: d.x - DEV_OBST, y1: d.y - DEV_OBST, x2: d.x + DEV_OBST, y2: d.y + DEV_OBST }));
@@ -1107,7 +1148,8 @@ function drawCable(c) {
   const pts = getRoute(c);
   if (pts.length < 2) return;
   const live = a.on && b.on;
-  let color = c.type === "fiber" ? TH.cableFiber : TH.cableCopper;
+  // власний колір користувача має пріоритет (крім режиму симуляції)
+  let color = c.color || (c.type === "fiber" ? TH.cableFiber : TH.cableCopper);
   if (simOn) color = live ? TH.ok : TH.danger;
   ctx.strokeStyle = isSel(c) ? TH.sel : color;
   ctx.lineWidth = c.type === "fiber" ? 3.5 : 3;
@@ -1116,6 +1158,53 @@ function drawCable(c) {
   // конектори на кінцях (на межі корпусу)
   ctx.fillStyle = color;
   [pts[0], pts[pts.length - 1]].forEach((p) => { ctx.beginPath(); ctx.arc(p.x, p.y, 3.2, 0, Math.PI * 2); ctx.fill(); });
+}
+
+// ----- Ручне редагування згинів кабелю -----
+const WP_TOL = 8;          // радіус влучання по вузлу (екранні px)
+// перетворити авто-кабель на ручний (вузли = поточні внутрішні точки маршруту)
+function ensureManual(c) {
+  if (!c.waypoints) {
+    const r = getRoute(c);
+    c.waypoints = r.slice(1, -1).map((p) => ({ x: p.x, y: p.y }));
+  }
+}
+// ручка під курсором для виділеного кабелю: вузол або точка додавання на сегменті
+function cableHandleAt(c, wx, wy) {
+  const tol = WP_TOL / view.scale;
+  const wps = c.waypoints || [];
+  for (let i = 0; i < wps.length; i++) {
+    if (Math.hypot(wx - wps[i].x, wy - wps[i].y) <= tol) return { type: "wp", index: i };
+  }
+  const r = getRoute(c);
+  for (let k = 0; k < r.length - 1; k++) {
+    const mx = (r[k].x + r[k + 1].x) / 2, my = (r[k].y + r[k + 1].y) / 2;
+    if (Math.hypot(wx - mx, wy - my) <= tol) return { type: "add", seg: k, x: mx, y: my };
+  }
+  return null;
+}
+function drawCableHandles(c) {
+  const r = getRoute(c);
+  // точки додавання на серединах сегментів (порожні кружечки з +)
+  ctx.lineWidth = 1.5 / view.scale;
+  for (let k = 0; k < r.length - 1; k++) {
+    const mx = (r[k].x + r[k + 1].x) / 2, my = (r[k].y + r[k + 1].y) / 2;
+    const s = 4.5 / view.scale;
+    ctx.fillStyle = "#ffffff";
+    ctx.strokeStyle = TH.sel;
+    ctx.beginPath(); ctx.arc(mx, my, s, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = TH.sel; ctx.lineWidth = 1.3 / view.scale;
+    ctx.beginPath(); ctx.moveTo(mx - s * 0.5, my); ctx.lineTo(mx + s * 0.5, my);
+    ctx.moveTo(mx, my - s * 0.5); ctx.lineTo(mx, my + s * 0.5); ctx.stroke();
+    ctx.lineWidth = 1.5 / view.scale;
+  }
+  // вузли згину (заповнені квадрати)
+  const wps = c.waypoints || [];
+  const sq = 5 / view.scale;
+  for (const wp of wps) {
+    ctx.fillStyle = TH.sel; ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5 / view.scale;
+    ctx.beginPath(); ctx.rect(wp.x - sq, wp.y - sq, sq * 2, sq * 2); ctx.fill(); ctx.stroke();
+  }
 }
 
 function drawWifiRange(d) {
@@ -1341,6 +1430,7 @@ function inspRoom(r) {
 
 function inspCable(c) {
   const a = byId(c.a), b = byId(c.b);
+  const curColor = c.color || (c.type === "fiber" ? THEMES.light.cableFiber : THEMES.light.cableCopper);
   inspBody.innerHTML = `
     <div class="field"><label>${t("insp.connection")}</label><div>${escHtml(a?.name || "?")} ⇄ ${escHtml(b?.name || "?")}</div></div>
     <div class="field"><label>${t("insp.cableType")}</label>
@@ -1348,8 +1438,20 @@ function inspCable(c) {
         <option value="copper" ${c.type === "copper" ? "selected" : ""}>${t("cable.copper")}</option>
         <option value="fiber" ${c.type === "fiber" ? "selected" : ""}>${t("cable.fiber")}</option>
       </select></div>
+    <div class="field"><label>${t("insp.color")}</label>
+      <div class="row">
+        <input type="color" id="c-color" value="${curColor}" style="flex:1; padding:3px; height:34px;" />
+        <button id="c-color-auto" class="btn-mini" ${c.color ? "" : "disabled"}>${t("insp.colorAuto")}</button>
+      </div></div>
+    <div class="field"><label>${t("insp.bends")}</label>
+      <button id="c-straighten" class="btn-mini" style="width:100%" ${c.waypoints && c.waypoints.length ? "" : "disabled"}>${window.svgInline("redo")}${t("insp.bendsReset")}</button>
+      <div class="muted" style="font-size:10px; margin-top:5px; line-height:1.5">${t("insp.bendsHint")}</div></div>
     <div class="btn-row"><button id="d-del" class="btn-mini">${window.svgInline("trash")}${t("insp.delete")}</button></div>`;
   document.getElementById("c-type").addEventListener("change", (e) => { c.type = e.target.value; autosave(); commit(); draw(); });
+  document.getElementById("c-color").addEventListener("input", (e) => { c.color = e.target.value; autosave(); draw(); });
+  document.getElementById("c-color").addEventListener("change", () => { commit(); refreshInspector(); });
+  document.getElementById("c-color-auto").addEventListener("click", () => { delete c.color; autosave(); commit(); draw(); refreshInspector(); });
+  document.getElementById("c-straighten").addEventListener("click", () => { delete c.waypoints; ROUTE.sig = ""; autosave(); commit(); draw(); refreshInspector(); });
   bindDel();
 }
 

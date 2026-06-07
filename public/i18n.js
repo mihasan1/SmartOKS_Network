@@ -147,6 +147,11 @@ const I18N = {
     "insp.cableType": "Тип кабелю",
     "cable.copper": "Вита пара (мідь)",
     "cable.fiber": "Оптоволокно",
+    "insp.color": "Колір зв'язку",
+    "insp.colorAuto": "Авто",
+    "insp.bends": "Згини лінії",
+    "insp.bendsReset": "Випрямити",
+    "insp.bendsHint": "На полотні: тягніть квадратні вузли, щоб згинати; клік на «+» додає вузол; подвійний клік — видаляє.",
   },
 
   en: {
@@ -287,6 +292,11 @@ const I18N = {
     "insp.cableType": "Cable type",
     "cable.copper": "Twisted pair (copper)",
     "cable.fiber": "Fiber optic",
+    "insp.color": "Link color",
+    "insp.colorAuto": "Auto",
+    "insp.bends": "Line bends",
+    "insp.bendsReset": "Straighten",
+    "insp.bendsHint": "On canvas: drag the square nodes to bend; click “+” to add a node; double-click to remove.",
   },
 };
 
