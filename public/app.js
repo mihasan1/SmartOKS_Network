@@ -106,6 +106,10 @@ function resize() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 window.addEventListener("resize", () => { resize(); draw(); });
+// надійне перемалювання за будь-якої зміни розміру контейнера (компонування, орієнтація тощо)
+if (window.ResizeObserver) {
+  new ResizeObserver(() => { resize(); draw(); }).observe(cv.parentElement);
+}
 
 const toWorld = (sx, sy) => ({ x: (sx - view.x) / view.scale, y: (sy - view.y) / view.scale });
 const snap = (v) => Math.round(v / GRID) * GRID;

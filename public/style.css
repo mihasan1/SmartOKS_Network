@@ -75,7 +75,7 @@ body {
   display: flex; align-items: center; justify-content: center; color: #fff;
 }
 .brand .logo .ic { width: 18px; height: 18px; }
-.tools, .actions { display: flex; align-items: center; gap: 6px; }
+.tools, .actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .spacer { flex: 1; }
 
 button, select, input {
@@ -98,6 +98,9 @@ input:focus, select:focus { outline: none; border-color: var(--accent); box-shad
 
 .tool.active { background: var(--accent); color: #fff; border-color: var(--accent); box-shadow: var(--shadow-sm); }
 .tool.active .ic { stroke: #fff; }
+/* інструменти — завжди лише іконки (з підказкою при наведенні), компактно */
+.tool .lbl { display: none; }
+.tool { padding: 8px; }
 .icon-btn { padding: 8px; }
 .proj-name { width: 120px; }
 #btn-sim.on { background: var(--accent2); color: #fff; border-color: var(--accent2); }
@@ -301,3 +304,74 @@ kbd {
 aside::-webkit-scrollbar, #console::-webkit-scrollbar { width: 8px; }
 aside::-webkit-scrollbar-thumb, #console::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
 aside::-webkit-scrollbar-track, #console::-webkit-scrollbar-track { background: transparent; }
+.dev-grid::-webkit-scrollbar { height: 7px; }
+.dev-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+/* ====================================================================
+   Адаптивність
+   ==================================================================== */
+/* топбар завжди може переноситись — нічого не обрізається на вузьких екранах */
+#topbar { flex-wrap: wrap; row-gap: 8px; }
+
+/* --- Вузький десктоп / ноутбук: кнопки лише з іконками --- */
+@media (max-width: 1280px) {
+  #topbar { gap: 8px; padding: 10px 14px; }
+  .tool .lbl,
+  #btn-sim .lbl,
+  #btn-autoip .lbl,
+  #btn-save .lbl { display: none; }
+  .tool, #btn-sim, #btn-autoip, #btn-save { padding: 8px; }
+  .user .uname { display: none; }
+  .brand-text { display: none; }
+  #palette { width: 208px; }
+  #inspector { width: 244px; }
+}
+
+/* --- Планшет --- */
+@media (max-width: 1040px) {
+  #main { gap: 10px; padding: 0 12px 12px; }
+  #palette { width: 182px; }
+  #inspector { width: 214px; }
+  .dev-grid { gap: 6px; }
+  .dev-btn { padding: 9px 3px; }
+  .dev-btn .nm { font-size: 9.5px; }
+}
+
+/* --- Планшети (портрет) та мобільні: вертикальне компонування --- */
+@media (max-width: 900px) {
+  #topbar { padding: 8px 10px; gap: 6px; }
+  .spacer { display: none; }
+  .brand { padding-right: 0; }
+  .proj-name { width: 86px; }
+  #proj-list { max-width: 130px; }
+  .sep { margin: 0 2px; }
+
+  #main {
+    flex-direction: column;
+    overflow-y: auto;
+    gap: 8px; padding: 0 8px 8px;
+  }
+  aside, #inspector, #canvas-wrap { width: auto; flex: none; }
+
+  /* палітра — горизонтальна стрічка пристроїв */
+  #palette { order: 0; padding: 12px 12px 10px; }
+  #palette .dev-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 66px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+
+  #canvas-wrap { order: 1; height: 56vh; min-height: 300px; }
+  #inspector { order: 2; max-height: 60vh; }
+  #console { height: 130px; }
+  #hint { display: none; }
+}
+
+/* --- Дуже вузькі екрани --- */
+@media (max-width: 380px) {
+  .proj-name { width: 70px; }
+  #proj-list { max-width: 96px; }
+  #canvas-wrap { height: 50vh; }
+}
