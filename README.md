@@ -72,6 +72,14 @@ With auto-reload:
 npm run dev
 ```
 
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `3000` | Port for the local Express server (`server.js`). |
+
+> No secrets or API keys are required. Vercel deployment needs no env vars; the Vercel CLI and GitHub push authenticate locally.
+
 ---
 
 ## ⌨️ Keyboard shortcuts
