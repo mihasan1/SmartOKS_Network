@@ -11,6 +11,8 @@
 const I18N = {
   uk: {
     "app.title": "SmartOKS — Network Planner",
+    "moved.text": "SmartOKS Network тепер частина SmartOKS — «Карта мережі» будує план з вашої Бази знань. Ваш проєкт зберігається лише в цьому браузері: збережіть його у файл (.json) кнопкою на панелі, а потім відкрийте на карті через «Імпорт JSON». Незабаром ця адреса перенаправлятиме на SmartOKS.",
+    "moved.link": "Детальніше →",
 
     "tool.select": "Вибір",
     "tool.room": "Кімната",
@@ -156,6 +158,8 @@ const I18N = {
 
   en: {
     "app.title": "SmartOKS — Network Planner",
+    "moved.text": "SmartOKS Network is now part of SmartOKS — the Network map builds plans from your knowledge base. Your project is stored only in this browser: save it to a file (.json) with the toolbar button, then open it on the map with “Import JSON”. This address will soon redirect to SmartOKS.",
+    "moved.link": "Learn more →",
 
     "tool.select": "Select",
     "tool.room": "Room",
