@@ -1,5 +1,10 @@
 # 🖧 SmartOKS — Network Planner
 
+> **Moved.** The planner now lives inside SmartOKS as the **Network map** module:
+> https://smartoks.com.ua/karta-merezhi/ — plans are built from the knowledge base,
+> and old project files (`.json`) open there via “Import JSON”. This repository is
+> kept for history; `smartoks-network.vercel.app` redirects (301) to the module page.
+
 > A browser-based LAN designer and room planner — a **Cisco Packet Tracer** analog.
 
 [![demo](https://img.shields.io/badge/demo-smartoks--network.vercel.app-3b82f6)](https://smartoks-network.vercel.app)
