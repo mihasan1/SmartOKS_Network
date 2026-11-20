@@ -3,5 +3,8 @@
   "framework": null,
   "outputDirectory": "public",
   "buildCommand": null,
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "redirects": [
+    { "source": "/(.*)", "destination": "https://smartoks.com.ua/karta-merezhi/", "statusCode": 301 }
+  ]
 }
