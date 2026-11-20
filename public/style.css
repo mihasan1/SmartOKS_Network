@@ -56,6 +56,26 @@ body {
 .ic { width: 17px; height: 17px; flex-shrink: 0; display: block; }
 
 /* ===== Верхня панель ===== */
+/* Банер переїзду в SmartOKS (див. index.html) */
+#moved-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 9px 18px;
+  flex-shrink: 0;
+  background: #4054b2;
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.45;
+}
+#moved-banner a {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: underline;
+  white-space: nowrap;
+}
+
 #topbar {
   display: flex;
   align-items: center;
